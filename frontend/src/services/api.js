@@ -37,7 +37,7 @@ api.interceptors.response.use(
     }
 
     if (status === 403) {
-      console.warn('[Label Sach API] 403 Forbidden:', error.config?.url);
+      console.warn('[FoodLens API] 403 Forbidden:', error.config?.url);
     }
 
     // Normalize error message

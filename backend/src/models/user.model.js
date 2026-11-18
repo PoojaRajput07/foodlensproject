@@ -3,8 +3,18 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 
-const ALLERGENS = ["milk", "egg", "peanut", "tree_nuts", "gluten", "soy", "sesame", "fish", "shellfish"];
-const CONDITIONS = ["diabetes", "high_bp", "thyroid", "pcos", "lactose_intolerance"];
+const ALLERGENS = [ "Milk",
+      "Peanut",
+      "Gluten",
+      "Soy",
+      "Egg",
+      "Tree nuts",
+      "Sesame"];
+const CONDITIONS = ["Diabetes",
+      "High BP",
+      "Thyroid",
+      "PCOS",
+      "Lactose intolerance"];
 const userSchema=new mongoose.Schema({
     name:{
         type:String,
@@ -33,7 +43,16 @@ const userSchema=new mongoose.Schema({
     healthProfile:{
         allergies:[{ type: String, enum: ALLERGENS }],
          conditions: [{ type: String, enum: CONDITIONS }],
-         diet:{type:String,enum:["veg", "non_veg", "vegan", "jain"], default: "veg" }
+           diet: {
+    type: String,
+    enum: [
+      "Vegetarian",
+      "Non-vegetarian",
+      "Vegan",
+      "Jain"
+    ],
+    default: "Vegetarian"
+  }
         
     },
     profileCompleted:{

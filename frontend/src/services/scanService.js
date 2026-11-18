@@ -1,156 +1,419 @@
+
 // src/services/scanService.js
+
 import api, { USE_MOCK } from './api.js';
 import { MOCK_SCAN_RESULT } from './mockAdapter.js';
 
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * Normalizes a backend scan result to the shape the frontend expects:
- *   verdict (lowercase), productName, brand, quantity, imageUrl,
- *   ingredients (string[]), conflictingIngredients, nutrition, scanId
+ * Normalize backend scan response.
+ *
+ * IMPORTANT:
+ * Preserve the complete new backend response:
+ * - aiAnalysis
+ * - personalizedAssessment
+ * - ingredientAnalysis
+ * - product.productAnalysis
+ * - raw nutrition values
  */
 function normalizeScanResult(data) {
   const product = data.product || {};
-  const verdict = (data.overallVerdict || 'UNKNOWN').toLowerCase();
 
-  // Map backend warnings to frontend conflictingIngredients
-  const conflictingIngredients = (data.warnings || []).map((w) => ({
-    name: w.ingredient || w.allergen || '',
-    reason: w.message?.en || '',
-    verdict: w.severity === 'avoid' ? 'avoid' : w.severity === 'caution' ? 'caution' : 'ok',
-    source: w.ruleType || w.type || '',
-  })).filter((c) => c.name);
+  const nutrition = data.nutrition || {};
 
-  // Nutrition: map backend keys to frontend display strings
-  const n = data.nutrition || {};
-  const nutrition = (n.energyKcal100g != null || n.sugars100g != null) ? {
-    servingSize: '100g',
-    energy: n.energyKcal100g != null ? `${n.energyKcal100g} kcal` : null,
-    sugar: n.sugars100g != null ? `${n.sugars100g}g` : null,
-    sodium: n.sodium100g != null ? `${(n.sodium100g * 1000).toFixed(0)}mg` : null,
-    fat: n.fat100g != null ? `${n.fat100g}g` : null,
-    protein: n.proteins100g != null ? `${n.proteins100g}g` : null,
-    carbohydrates: n.carbohydrates100g != null ? `${n.carbohydrates100g}g` : null,
-  } : null;
+  const verdict = (
+    data.overallVerdict ||
+    data.verdict ||
+    data.aiAnalysis?.personalizedAssessment?.status ||
+    data.aiAnalysis?.overallAssessment ||
+    'UNVERIFIED'
+  ).toUpperCase();
+
+  const ingredients =
+    product.ingredients ||
+    data.ingredients ||
+    data.scannedIngredients?.map((item) =>
+      typeof item === 'string' ? item : item.name
+    ) ||
+    [];
 
   return {
+    // Preserve every field returned by the backend
+    ...data,
+
+    // Scan ID
     _id: data.scanId || data._id,
-    productName: product.name || data.ingredientsText?.slice(0, 40) || 'Unknown product',
-    brand: product.brand || '',
-    quantity: product.quantity || null,
-    imageUrl: product.image || null,
+
+    // Product information
+    product: {
+      ...product,
+
+      name:
+        product.name ||
+        data.productName ||
+        'Unknown product',
+
+      brand: product.brand || data.brand || '',
+
+      image: product.image || data.imageUrl || null,
+
+      ingredients,
+
+      // Product label information from Open Food Facts
+      productAnalysis:
+        product.productAnalysis ||
+        data.productAnalysis ||
+        {
+          allergens: [],
+          ingredientAnalysisTags: [],
+          additives: [],
+        },
+    },
+
+    // Legacy frontend compatibility
+    productName:
+      product.name ||
+      data.productName ||
+      'Unknown product',
+
+    brand: product.brand || data.brand || '',
+
+    imageUrl: product.image || data.imageUrl || null,
+
     barcode: data.barcode || null,
-    verdict,
-    verdictSummary: data.summary || '',
-    conflictingIngredients,
-    ingredients: data.product?.ingredients || data.scannedIngredients?.map((i) => i.name) || [],
-    unmatchedIngredients: data.unmatchedIngredients || [],
+
+    verdict: verdict.toLowerCase(),
+
+    verdictSummary:
+      data.aiAnalysis?.summary ||
+      data.summary ||
+      '',
+
+    // Preserve raw numeric nutrition values.
+    // ScanResult.jsx uses keys such as energyKcal100g.
     nutrition,
-    disclaimer: 'Label Sach provides ingredient analysis based on FSSAI data and published health guidelines. This is not medical advice.',
-    scannedAt: data.createdAt || new Date().toISOString(),
+
+    // Preserve complete AI response
+    aiAnalysis: data.aiAnalysis || null,
+
+    // Ingredient list
+    ingredients,
+
+    // New AI architecture does not use legacy rule warnings
+    conflictingIngredients: [],
+
+    unmatchedIngredients: [],
+
+    // Metadata
+    quantity: product.quantity || null,
+
+    scannedAt:
+      data.createdAt ||
+      new Date().toISOString(),
+
     isSaved: data.isSaved || false,
+
+    // Accurate disclaimer
+    disclaimer:
+      'FoodLens provides an AI-assisted product assessment based on available ingredient, label and nutrition information. Product data may be incomplete or inaccurate. This is not medical advice and does not certify FSSAI compliance.',
   };
 }
 
 /**
- * Normalize a scan history item (lighter shape).
+ * Normalize a scan history item.
+ * Keep AI analysis, nutrition and product information
+ * if the backend includes them in the history response.
  */
 function normalizeHistoryItem(scan) {
   const product = scan.product || {};
+
   return {
     ...scan,
-    productName: product.name || (scan.ingredients?.slice(0, 2).join(', ')) || 'Manual scan',
-    brand: product.brand || '',
+
+    product: {
+      ...product,
+      productAnalysis:
+        product.productAnalysis ||
+        scan.productAnalysis ||
+        {},
+    },
+
+    productName:
+      product.name ||
+      scan.productName ||
+      scan.ingredients?.slice(0, 2).join(', ') ||
+      'Manual scan',
+
+    brand: product.brand || scan.brand || '',
+
     imageUrl: product.image || null,
-    verdict: (scan.overallVerdict || 'UNKNOWN').toLowerCase(),
-    scannedAt: scan.createdAt,
+
+    verdict: (
+      scan.overallVerdict ||
+      scan.verdict ||
+      scan.aiAnalysis?.personalizedAssessment?.status ||
+      'UNVERIFIED'
+    ).toLowerCase(),
+
+    scannedAt: scan.createdAt || scan.scannedAt,
+
+    ingredients:
+      product.ingredients ||
+      scan.ingredients ||
+      [],
+
+    nutrition: scan.nutrition || {},
+
+    aiAnalysis: scan.aiAnalysis || null,
   };
 }
 
 export const scanService = {
+  /**
+   * Barcode scanning
+   */
   async scanBarcode(barcode) {
     if (USE_MOCK) {
       await delay(1200);
-      return { ...MOCK_SCAN_RESULT, barcode, _id: 'scan-' + Date.now() };
+
+      return normalizeScanResult({
+        ...MOCK_SCAN_RESULT,
+        barcode,
+        scanId: 'scan-' + Date.now(),
+      });
     }
-    const { data } = await api.post('/scan/barcode', { barcode });
-    return normalizeScanResult(data);
+
+    try {
+      const { data } = await api.post('/scan/barcode', {
+        barcode,
+      });
+
+      return normalizeScanResult(data);
+    } catch (err) {
+      console.log('SCAN ERROR:', err);
+      console.log('STATUS:', err.response?.status);
+      console.log('BACKEND RESPONSE:', err.response?.data);
+
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.message;
+
+      if (!err.response) {
+        throw {
+          message: 'Backend server is unreachable.',
+        };
+      }
+
+      if (status === 502 || status === 503) {
+        throw {
+          message:
+            serverMsg ||
+            'Product data service is unavailable.',
+        };
+      }
+
+      throw {
+        message: serverMsg || 'Something went wrong.',
+      };
+    }
   },
 
   /**
-   * OCR image scan – sends image file as multipart/form-data.
-   * FormData must have key 'image'.
+   * OCR image scanning
+   * FormData key must be "image".
    */
-  async scanIngredients(formData) {
-    if (USE_MOCK) {
-      await delay(1500);
-      return { ...MOCK_SCAN_RESULT, _id: 'scan-' + Date.now() };
-    }
-    const { data } = await api.post('/scan/ocr', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+  
+async scanIngredients(formData) {
+  if (USE_MOCK) {
+    await delay(1500);
+
+    return normalizeScanResult({
+      ...MOCK_SCAN_RESULT,
+      scanId: 'scan-' + Date.now(),
     });
+  }
+
+  try {
+   
+const { data } = await api.post(
+  '/scan/ocr',
+  formData,
+  {
+    headers: {
+      'Content-Type': undefined,
+    },
+  }
+);
+
+
     return normalizeScanResult(data);
-  },
+  } catch (err) {
+    console.log('OCR SCAN ERROR:', err);
+    console.log('BACKEND RESPONSE:', err.response?.data);
+
+    throw {
+      message:
+        err.response?.data?.message ||
+        'Could not scan the ingredient image.',
+    };
+  }
+},
 
   /**
-   * Manual ingredient text scan.
+   * Manual ingredient scanning
    */
   async scanManual(ingredients) {
     if (USE_MOCK) {
       await delay(1200);
-      return { ...MOCK_SCAN_RESULT, _id: 'scan-' + Date.now() };
+
+      return normalizeScanResult({
+        ...MOCK_SCAN_RESULT,
+        scanId: 'scan-' + Date.now(),
+      });
     }
-    const payload = Array.isArray(ingredients) ? { ingredients } : { ingredients: [ingredients] };
-    const { data } = await api.post('/scan/ingredients', payload);
-    return normalizeScanResult(data);
+
+    try {
+      const payload = Array.isArray(ingredients)
+        ? { ingredients }
+        : { ingredients: [ingredients] };
+
+      const { data } = await api.post(
+        '/scan/ingredients',
+        payload
+      );
+
+      return normalizeScanResult(data);
+    } catch (err) {
+      console.log('MANUAL SCAN ERROR:', err.response?.data);
+
+      throw {
+        message:
+          err.response?.data?.message ||
+          'Could not analyze the ingredients.',
+      };
+    }
   },
 
+  /**
+   * Get a single scan by ID.
+   */
   async getScanById(id) {
     if (USE_MOCK) {
       await delay(400);
-      return MOCK_SCAN_RESULT;
+
+      return normalizeScanResult(MOCK_SCAN_RESULT);
     }
-    const { data } = await api.get(`/scan/${id}`);
-    return normalizeScanResult(data.scan || data);
+
+    try {
+      const { data } = await api.get(`/scan/${id}`);
+
+      const scan = data.scan || data.data?.scan || data.data || data;
+
+      return normalizeScanResult(scan);
+    } catch (err) {
+      console.log('GET SCAN ERROR:', err.response?.data);
+
+      throw {
+        message:
+          err.response?.data?.message ||
+          'Could not load scan result.',
+      };
+    }
   },
 
+  /**
+   * Save or unsave a scan.
+   */
   async saveScan(id, isSaved = true) {
     if (USE_MOCK) {
       await delay(300);
-      return { success: true };
+
+      return {
+        success: true,
+      };
     }
-    // Backend: PATCH /scans/history/:id/save  with { isSaved }
-    const { data } = await api.patch(`/scans/history/${id}/save`, { isSaved });
+
+    const { data } = await api.patch(
+      `/scans/history/${id}/save`,
+      { isSaved }
+    );
+
     return data;
   },
 
+  /**
+   * Delete a scan.
+   */
   async deleteScan(id) {
     if (USE_MOCK) {
       await delay(300);
-      return { success: true };
+
+      return {
+        success: true,
+      };
     }
-    const { data } = await api.delete(`/scans/history/${id}`);
+
+    const { data } = await api.delete(
+      `/scans/history/${id}`
+    );
+
     return data;
   },
 
-  async reportScan(id, reportType, description = '') {
+  /**
+   * Report an incorrect scan result.
+   */
+  async reportScan(
+    id,
+    reportType,
+    description = ''
+  ) {
     if (USE_MOCK) {
       await delay(400);
-      return { success: true };
+
+      return {
+        success: true,
+      };
     }
-    const { data } = await api.post(`/scans/history/${id}/report`, { reportType, description });
+
+    const { data } = await api.post(
+      `/scans/history/${id}/report`,
+      {
+        reportType,
+        description,
+      }
+    );
+
     return data;
   },
 
+  /**
+   * Get scan history.
+   */
   async getHistory(params = {}) {
     if (USE_MOCK) {
       await delay(500);
-      return { scans: [], total: 0, pagination: { totalPages: 1 } };
+
+      return {
+        scans: [],
+        total: 0,
+        pagination: {
+          totalPages: 1,
+        },
+      };
     }
-    const { data } = await api.get('/scan/history', { params });
+
+    const { data } = await api.get(
+      '/scan/history',
+      { params }
+    );
+
     return {
       ...data,
-      scans: (data.scans || []).map(normalizeHistoryItem),
+
+      scans: (data.scans || []).map(
+        normalizeHistoryItem
+      ),
     };
   },
 };

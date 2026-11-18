@@ -231,7 +231,92 @@ const ingredients = [
     fssaiStatus: "unknown",
     verified: false,
   },
+  
 ];
+
+const commonIngredients = [
+  {
+    name: { en: "Skimmed milk" },
+    slug: "skimmed-milk",
+    aliases: ["skim milk", "skimmed milk powder"],
+    category: "other",
+    fssaiStatus: "unknown",
+    whoShouldBeCareful: ["milk allergy", "lactose intolerance"],
+    verified: false,
+  },
+  {
+    name: { en: "Milk powder" },
+    slug: "milk-powder",
+    aliases: ["whole milk powder", "skimmed milk powder"],
+    category: "other",
+    fssaiStatus: "unknown",
+    whoShouldBeCareful: ["milk allergy", "lactose intolerance"],
+    verified: false,
+  },
+  {
+    name: { en: "Whey" },
+    slug: "whey",
+    aliases: ["whey powder", "whey protein", "milk whey"],
+    category: "other",
+    fssaiStatus: "unknown",
+    whoShouldBeCareful: ["milk allergy"],
+    verified: false,
+  },
+  {
+    name: { en: "Lactose" },
+    slug: "lactose",
+    aliases: ["milk sugar"],
+    category: "other",
+    fssaiStatus: "unknown",
+    whoShouldBeCareful: ["lactose intolerance"],
+    verified: false,
+  },
+  {
+    name: { en: "Cream" },
+    slug: "cream",
+    aliases: ["light cream", "milk cream"],
+    category: "other",
+    fssaiStatus: "unknown",
+    whoShouldBeCareful: ["milk allergy", "lactose intolerance"],
+    verified: false,
+  },
+  {
+    name: { en: "Milkfat" },
+    slug: "milkfat",
+    aliases: ["milk fat", "butterfat"],
+    category: "other",
+    fssaiStatus: "unknown",
+    whoShouldBeCareful: ["milk allergy"],
+    verified: false,
+  },
+  {
+    name: { en: "Butter" },
+    slug: "butter",
+    aliases: ["dairy butter"],
+    category: "other",
+    fssaiStatus: "unknown",
+    whoShouldBeCareful: ["milk allergy", "lactose intolerance"],
+    verified: false,
+  },
+  {
+    name: { en: "Wheat flour" },
+    slug: "wheat-flour",
+    aliases: ["flour", "wheat"],
+    category: "other",
+    fssaiStatus: "unknown",
+    whoShouldBeCareful: ["gluten allergy"],
+    verified: false,
+  },
+  {
+    name: { en: "Soya lecithin" },
+    slug: "soya-lecithin",
+    aliases: ["soy lecithin", "lecithin of soy"],
+    category: "emulsifier",
+    fssaiStatus: "unknown",
+    verified: false,
+  },
+];
+
 
 async function seedIngredients() {
   try {
@@ -242,7 +327,11 @@ async function seedIngredients() {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("MongoDB connected");
 
-    for (const ingredient of ingredients) {
+    const allIngredients = [...ingredients, ...commonIngredients];
+
+for (const ingredient of allIngredients) {
+
+  
       await Ingredient.updateOne(
         { slug: ingredient.slug },
         { $set: ingredient },
@@ -250,7 +339,7 @@ async function seedIngredients() {
       );
     }
 
-    console.log(`Successfully seeded ${ingredients.length} ingredients`);
+    console.log(`Successfully seeded ${allIngredients.length} ingredients`);
   } catch (error) {
     console.error("Seeding failed:", error.message);
     process.exitCode = 1;

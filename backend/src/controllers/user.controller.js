@@ -9,8 +9,7 @@ export const signup = async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: "All fields are required" });
     }
-    console.log(name,email,password);
-    
+
     if (password.length < 8) {
       return res.status(400).json({ success: false, message: "Password must be at least 8 characters long" });
     }
@@ -22,10 +21,34 @@ export const signup = async (req, res) => {
 
     const user = await User.create({ name, email, password, language });
 
+    // Auto-login after signup: generate tokens
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    const cookieOptions = {
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    };
+    res.cookie("accessToken", accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+    res.cookie("refreshToken", refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+
     return res.status(201).json({
       success: true,
       message: "Account created successfully",
-      user: { name: user.name, email: user.email, language: user.language },
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        language: user.language,
+        profileCompleted: user.profileCompleted,
+        healthProfile: user.healthProfile,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.error("Signup error:", error);

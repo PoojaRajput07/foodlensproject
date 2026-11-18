@@ -29,7 +29,7 @@ export function Topbar({ onMenuClick, title }) {
         <div className="w-7 h-7 rounded-lg flex items-center justify-center ls-brand-gradient">
           <Leaf size={14} className="text-white" />
         </div>
-        {title || 'Label Sach'}
+        {title || 'FoodLens'}
       </button>
     </header>
   );

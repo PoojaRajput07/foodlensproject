@@ -61,7 +61,7 @@ export function Sidebar({ open, onClose }) {
             >
               <Leaf size={16} className="text-white" />
             </div>
-            Label Sach
+            FoodLens
           </button>
           {/* Mobile close */}
           <button

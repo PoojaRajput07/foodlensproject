@@ -19,7 +19,7 @@ export const evaluateIngredients = async ({
 
   const allergies = (healthProfile.allergies || []).map(normalize);
   const conditions = (healthProfile.conditions || []).map(normalize);
-  const diet = normalize(healthProfile.diet || "veg");
+  const diet = normalize(healthProfile.diet || "vegetarian");
 
   const results = [];
 

@@ -20,7 +20,8 @@ await connectDb();
 const app = express();
 
 // Security headers
-app.use(helmet());
+// crossOriginResourcePolicy disabled so the browser can fetch from frontend dev origin
+app.use(helmet({ crossOriginResourcePolicy: false }));
 
 // CORS
 app.use(
@@ -62,7 +63,7 @@ app.use("/api/ingredients", ingredientRoutes);
 
 // Health check
 app.get("/", (req, res) => {
-  res.json({ success: true, message: "Label Sach API is running" });
+  res.json({ success: true, message: "FoodLens API is running" });
 });
 
 // 404 handler

@@ -1,37 +1,32 @@
-/**
- * OCR Service for Label Sach
- *
- * OCR_PROVIDER=none  → returns null (feature not configured)
- *
- * To add a real OCR provider in future, set OCR_PROVIDER=google|azure|tesseract
- * and implement the corresponding handler below.
- */
 
-/**
- * Extract ingredient text from an image file.
- *
- * @param {string} filePath  – absolute path to the uploaded image
- * @returns {Promise<string|null>}  – extracted raw text, or null if unavailable
- */
+import { createWorker } from "tesseract.js";
+import fs from "fs";
+
 export async function extractTextFromImage(filePath) {
-  const provider = (process.env.OCR_PROVIDER || "none").toLowerCase();
-
-  if (provider === "none" || !provider) {
-    return null;
+  if (!filePath || !fs.existsSync(filePath)) {
+    throw new Error("Uploaded image file not found.");
   }
 
-  // ── Future providers ──────────────────────────────────────────────
-  // if (provider === "google") { return googleVision(filePath); }
-  // if (provider === "azure")  { return azureComputerVision(filePath); }
+  let worker;
 
-  throw new Error(`Unsupported OCR_PROVIDER: ${provider}`);
+  try {
+    worker = await createWorker("eng");
+
+    const {
+      data: { text },
+    } = await worker.recognize(filePath);
+
+    return text?.trim() || "";
+  } catch (error) {
+    console.error("Tesseract OCR error:", error);
+    throw new Error("Failed to extract text from image.");
+  } finally {
+    if (worker) {
+      await worker.terminate();
+    }
+  }
 }
 
-/**
- * Returns whether OCR is currently configured and available.
- * @returns {boolean}
- */
 export function isOcrAvailable() {
-  const provider = (process.env.OCR_PROVIDER || "none").toLowerCase();
-  return provider !== "none" && provider !== "";
+  return true;
 }

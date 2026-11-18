@@ -39,44 +39,14 @@ const scanHistorySchema = new mongoose.Schema(
       default: [],
     },
 
-    matchedIngredients: [
-      {
-        name: { type: String, required: true },
-        slug: { type: String, required: true },
-      },
-    ],
-
-    unmatchedIngredients: {
-      type: [String],
-      default: [],
-    },
-
-    warnings: [
-      {
-        ingredient: String,
-        ruleType: {
-          type: String,
-          enum: ["allergy", "condition", "diet"],
-        },
-        target: String,
-        severity: {
-          type: String,
-          enum: ["info", "caution", "avoid"],
-        },
-        message: {
-          en: String,
-          hi: String,
-        },
-        reason: {
-          en: String,
-          hi: String,
-        },
-      },
-    ],
+   aiAnalysis: {
+  type: mongoose.Schema.Types.Mixed,
+  default: null,
+},
 
     overallVerdict: {
       type: String,
-      enum: ["AVOID", "CAUTION", "OK", "UNKNOWN"],
+    enum: ["AVOID", "CAUTION", "OK", "UNKNOWN", "UNVERIFIED"],
       default: "UNKNOWN",
     },
 

@@ -128,7 +128,7 @@ export default function Setup() {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center ls-brand-gradient">
             <Leaf size={15} className="text-white" />
           </div>
-          <span className="font-bold">Label Sach</span>
+          <span className="font-bold">FoodLens</span>
         </div>
 
         <h1 className="text-2xl font-bold mb-1" style={{ color: 'var(--ls-text)' }}>Set up your health profile</h1>

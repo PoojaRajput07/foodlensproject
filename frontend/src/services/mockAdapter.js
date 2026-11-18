@@ -115,7 +115,7 @@ export const MOCK_SCAN_RESULT = {
     carbohydrates: '45g',
   },
   disclaimer:
-    'Label Sach provides ingredient analysis based on FSSAI data and published health guidelines. This is not medical advice. Always consult a healthcare professional for dietary decisions.',
+    'FoodLens provides ingredient analysis based on FSSAI data and published health guidelines. This is not medical advice. Always consult a healthcare professional for dietary decisions.',
   scannedAt: '2024-11-15T14:22:00Z',
 };
 
