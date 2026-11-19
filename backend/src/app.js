@@ -12,7 +12,7 @@ import authRoutes from "./routes/auth.routes.js";
 import profileRoutes from "./routes/profile.route.js";
 import scanRoutes from "./routes/scan.routes.js";
 import scanHistoryRoutes from "./routes/scanHistory.routes.js";
-import ingredientRoutes from "./routes/ingredient.routes.js";
+
 import dashboardRoutes from "./routes/dashboard.routes.js";
 
 await connectDb();
@@ -59,7 +59,7 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/scan", scanLimiter, scanRoutes);
 app.use("/api/scans/history", scanHistoryRoutes);  // kept for backwards compat
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/ingredients", ingredientRoutes);
+
 
 // Health check
 app.get("/", (req, res) => {
