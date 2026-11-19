@@ -18,6 +18,7 @@ import dashboardRoutes from "./routes/dashboard.routes.js";
 await connectDb();
 
 const app = express();
+app.set("trust proxy", 1);
 
 // Security headers
 // crossOriginResourcePolicy disabled so the browser can fetch from frontend dev origin
@@ -28,7 +29,7 @@ app.use(helmet({ crossOriginResourcePolicy: false }));
 
 const allowedOrigins = [
   "http://localhost:5173",
-  process.env.FRONTEND_URL,
+  process.env.FRONTEND_URL?.trim(),
 ].filter(Boolean);
 
 app.use(
@@ -42,6 +43,7 @@ app.use(
 
 // Body parsing
 app.use(express.json({ limit: "1mb" }));
+
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());
 
