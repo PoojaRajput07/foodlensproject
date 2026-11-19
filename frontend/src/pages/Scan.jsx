@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Sparkles,
   Barcode,
-  Leaf,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BrowserMultiFormatReader } from '@zxing/browser';
@@ -31,35 +30,37 @@ const SCAN_OPTIONS = [
     icon: Camera,
     title: 'Camera Scan',
     description: 'Scan a product barcode using your camera.',
-    number: '01',
   },
   {
     id: 'manual',
     icon: Hash,
     title: 'Manual Entry',
     description: 'Enter the product barcode number manually.',
-    number: '02',
   },
   {
     id: 'barcode-image',
     icon: Barcode,
     title: 'Barcode Image',
     description: 'Upload a photo containing the product barcode.',
-    number: '03',
   },
   {
     id: 'ingredient-image',
     icon: ImageUp,
     title: 'Ingredients Image',
     description: 'Upload an ingredients label for AI analysis.',
-    number: '04',
   },
 ];
 
 function LoadingMessage({ children }) {
   return (
-    <div className="flex items-center justify-center gap-3 rounded-xl bg-[#EFF5EF] px-4 py-4 text-sm text-[#247A50]">
-      <Loader2 size={19} className="animate-spin shrink-0" />
+    <div
+      className="flex items-center justify-center gap-3 rounded-xl px-4 py-4 text-sm"
+      style={{
+        background: 'var(--ls-green-light)',
+        color: 'var(--ls-green)',
+      }}
+    >
+      <Loader2 size={19} className="shrink-0 animate-spin" />
       {children}
     </div>
   );
@@ -79,22 +80,43 @@ function UploadArea({ title, description, fileRef, onFile }) {
       }}
       onDrop={(event) => {
         event.preventDefault();
-        onFile(event.dataTransfer.files[0]);
+        onFile(event.dataTransfer.files?.[0]);
       }}
       onDragOver={(event) => event.preventDefault()}
-      className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#C9DCCF] bg-[#F6FAF6] px-6 py-12 text-center transition hover:border-[#247A50] hover:bg-[#EFF6F0]"
+      className="group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition"
+      style={{
+        borderColor: 'var(--ls-border-strong)',
+        background: 'var(--ls-page)',
+      }}
     >
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E5F1E8] text-[#247A50] transition group-hover:scale-105">
+      <div
+        className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl"
+        style={{
+          background: 'var(--ls-green-light)',
+          color: 'var(--ls-green)',
+        }}
+      >
         <Upload size={27} />
       </div>
 
-      <h3 className="font-semibold text-[#153F2C]">{title}</h3>
+      <h3
+        className="font-semibold"
+        style={{ color: 'var(--ls-heading)' }}
+      >
+        {title}
+      </h3>
 
-      <p className="mt-2 max-w-xs text-sm leading-6 text-[#788A7D]">
+      <p
+        className="mt-2 max-w-xs text-sm leading-6"
+        style={{ color: 'var(--ls-muted)' }}
+      >
         {description}
       </p>
 
-      <span className="mt-5 rounded-lg bg-[#247A50] px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#195F3C]">
+      <span
+        className="mt-5 rounded-lg px-5 py-2.5 text-xs font-semibold text-white"
+        style={{ background: 'var(--ls-green)' }}
+      >
         Choose Image
       </span>
 
@@ -114,8 +136,17 @@ function UploadArea({ title, description, fileRef, onFile }) {
 
 function ImagePreview({ preview, file, onRemove, alt }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#DCE8DE] bg-white">
-      <div className="flex min-h-48 items-center justify-center bg-[#F7FAF7] p-4">
+    <div
+      className="overflow-hidden rounded-2xl border"
+      style={{
+        borderColor: 'var(--ls-border)',
+        background: 'var(--ls-surface)',
+      }}
+    >
+      <div
+        className="flex min-h-48 items-center justify-center p-4"
+        style={{ background: 'var(--ls-page)' }}
+      >
         <img
           src={preview}
           alt={alt}
@@ -123,12 +154,21 @@ function ImagePreview({ preview, file, onRemove, alt }) {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-[#E6EDE6] px-4 py-3">
+      <div
+        className="flex items-center justify-between gap-3 border-t px-4 py-3"
+        style={{ borderColor: 'var(--ls-border)' }}
+      >
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-[#183F2D]">
+          <p
+            className="truncate text-sm font-medium"
+            style={{ color: 'var(--ls-heading)' }}
+          >
             {file?.name}
           </p>
-          <p className="mt-1 text-xs text-[#829187]">
+          <p
+            className="mt-1 text-xs"
+            style={{ color: 'var(--ls-muted)' }}
+          >
             Image uploaded successfully
           </p>
         </div>
@@ -137,7 +177,11 @@ function ImagePreview({ preview, file, onRemove, alt }) {
           type="button"
           onClick={onRemove}
           aria-label="Remove uploaded image"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FCEDEA] text-[#A34F40] transition hover:bg-[#F5DCD5]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          style={{
+            background: 'var(--ls-red-light)',
+            color: 'var(--ls-red)',
+          }}
         >
           <X size={16} />
         </button>
@@ -176,6 +220,11 @@ function CameraTab({ onResult }) {
   const startScan = useCallback(async () => {
     if (scanning || controlsRef.current) return;
 
+    if (!videoRef.current) {
+      toast.error('Camera preview is not ready.');
+      return;
+    }
+
     setScanning(true);
     setPermDenied(false);
     scannedRef.current = false;
@@ -187,16 +236,20 @@ function CameraTab({ onResult }) {
         undefined,
         videoRef.current,
         (result) => {
-          if (result && !scannedRef.current) {
-            scannedRef.current = true;
+          if (!result || scannedRef.current) return;
 
-            controlsRef.current?.stop();
-            controlsRef.current = null;
+          const barcode = result.getText()?.trim();
 
-            if (mountedRef.current) {
-              setScanning(false);
-              onResult(result.getText());
-            }
+          if (!barcode) return;
+
+          scannedRef.current = true;
+
+          controlsRef.current?.stop();
+          controlsRef.current = null;
+
+          if (mountedRef.current) {
+            setScanning(false);
+            onResult(barcode);
           }
         }
       );
@@ -231,7 +284,12 @@ function CameraTab({ onResult }) {
       mountedRef.current = false;
 
       if (controlsRef.current) {
-        controlsRef.current.stop();
+        try {
+          controlsRef.current.stop();
+        } catch (error) {
+          console.error('[Camera Cleanup Error]', error);
+        }
+
         controlsRef.current = null;
       }
     };
@@ -239,7 +297,13 @@ function CameraTab({ onResult }) {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
-      <div className="relative flex min-h-[280px] items-center justify-center overflow-hidden rounded-2xl border border-[#245A3E] bg-[#153F2D]">
+      <div
+        className="relative flex min-h-[280px] items-center justify-center overflow-hidden rounded-2xl border"
+        style={{
+          borderColor: 'var(--ls-border)',
+          background: 'var(--ls-raised)',
+        }}
+      >
         <video
           ref={videoRef}
           className="w-full"
@@ -254,13 +318,27 @@ function CameraTab({ onResult }) {
 
         {!scanning && (
           <div className="flex flex-col items-center gap-4 px-6 py-10 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-[#C7E3CE]">
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-2xl"
+              style={{
+                background: 'var(--ls-green-light)',
+                color: 'var(--ls-green)',
+              }}
+            >
               <Camera size={30} />
             </div>
 
             <div>
-              <p className="font-medium text-white">Camera Preview</p>
-              <p className="mt-2 text-xs text-white/60">
+              <p
+                className="font-medium"
+                style={{ color: 'var(--ls-heading)' }}
+              >
+                Camera Preview
+              </p>
+              <p
+                className="mt-2 text-xs"
+                style={{ color: 'var(--ls-muted)' }}
+              >
                 Your camera will appear here when activated.
               </p>
             </div>
@@ -269,15 +347,21 @@ function CameraTab({ onResult }) {
 
         {scanning && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="relative h-32 w-[75%] rounded-xl border-2 border-[#C4E4CC]">
-              <div className="absolute left-0 right-0 top-1/2 h-px bg-[#C4E4CC] shadow-[0_0_10px_#C4E4CC]" />
+            <div className="relative h-32 w-[75%] rounded-xl border-2 border-white">
+              <div className="absolute left-0 right-0 top-1/2 h-px bg-white" />
             </div>
           </div>
         )}
       </div>
 
       {permDenied && (
-        <div className="flex items-start gap-3 rounded-xl bg-[#FCEDEA] p-4 text-sm text-[#A34F40]">
+        <div
+          className="flex items-start gap-3 rounded-xl p-4 text-sm"
+          style={{
+            background: 'var(--ls-red-light)',
+            color: 'var(--ls-red)',
+          }}
+        >
           <AlertCircle size={19} className="mt-0.5 shrink-0" />
           Please allow camera access in your browser settings and try again.
         </div>
@@ -304,7 +388,10 @@ function CameraTab({ onResult }) {
         </Button>
       )}
 
-      <p className="text-center text-xs leading-5 text-[#829187]">
+      <p
+        className="text-center text-xs leading-5"
+        style={{ color: 'var(--ls-muted)' }}
+      >
         Hold your camera steady and point it towards the barcode on the
         product packaging.
       </p>
@@ -315,7 +402,6 @@ function CameraTab({ onResult }) {
 // --------------------------------------------------
 // MANUAL BARCODE ENTRY
 // --------------------------------------------------
-
 
 function ManualTab({ onResult }) {
   const [barcode, setBarcode] = useState('');
@@ -336,8 +422,6 @@ function ManualTab({ onResult }) {
     setLoading(true);
 
     try {
-      // Pass the barcode string to the parent.
-      // The parent handles the API request and navigation.
       await onResult(value);
     } catch (err) {
       toast.error(err.message || 'Product not found.');
@@ -348,16 +432,31 @@ function ManualTab({ onResult }) {
 
   return (
     <div className="mx-auto w-full max-w-lg">
-      <div className="mb-6 flex items-center gap-4 rounded-2xl bg-[#EFF5EF] p-5">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#247A50]">
+      <div
+        className="mb-6 flex items-center gap-4 rounded-2xl p-5"
+        style={{ background: 'var(--ls-green-light)' }}
+      >
+        <div
+          className="flex h-12 w-12 items-center justify-center rounded-xl"
+          style={{
+            background: 'var(--ls-surface)',
+            color: 'var(--ls-green)',
+          }}
+        >
           <Hash size={22} />
         </div>
 
         <div>
-          <p className="font-semibold text-[#153F2D]">
+          <p
+            className="font-semibold"
+            style={{ color: 'var(--ls-heading)' }}
+          >
             Enter Product Barcode
           </p>
-          <p className="mt-1 text-xs text-[#829187]">
+          <p
+            className="mt-1 text-xs"
+            style={{ color: 'var(--ls-muted)' }}
+          >
             Usually printed below the barcode lines.
           </p>
         </div>
@@ -373,9 +472,7 @@ function ManualTab({ onResult }) {
           placeholder="e.g. 8901030860140"
           value={barcode}
           onChange={(event) => {
-            setBarcode(
-              event.target.value.replace(/\D/g, '').slice(0, 14)
-            );
+            setBarcode(event.target.value.replace(/\D/g, '').slice(0, 14));
             setError('');
           }}
           error={error}
@@ -395,7 +492,6 @@ function ManualTab({ onResult }) {
     </div>
   );
 }
-
 
 // --------------------------------------------------
 // BARCODE IMAGE UPLOAD
@@ -446,9 +542,7 @@ function BarcodeImageTab({ onResult }) {
     setDetectedBarcode('');
     setDetectedFormat('');
 
-    if (fileRef.current) {
-      fileRef.current.value = '';
-    }
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   const handleScan = async () => {
@@ -480,7 +574,6 @@ function BarcodeImageTab({ onResult }) {
       setStatus('confirmed');
     } catch (error) {
       console.error('[Barcode Image Error]', error);
-
       setStatus('notfound');
 
       if (
@@ -495,13 +588,16 @@ function BarcodeImageTab({ onResult }) {
   };
 
   const handleConfirm = async () => {
-    if (!detectedBarcode) return;
+    if (!detectedBarcode || loading) return;
 
     setLoading(true);
     setStatus('fetching');
 
     try {
+      // This handler receives the completed result object.
+      // It must NOT call the barcode API again.
       const result = await scanService.scanBarcode(detectedBarcode);
+
       onResult(result);
     } catch (error) {
       setStatus('confirmed');
@@ -538,24 +634,51 @@ function BarcodeImageTab({ onResult }) {
       )}
 
       {status === 'scanning' && (
-        <LoadingMessage>Detecting barcode from your image...</LoadingMessage>
+        <LoadingMessage>
+          Detecting barcode from your image...
+        </LoadingMessage>
       )}
 
       {status === 'confirmed' && (
-        <div className="flex flex-col gap-4 rounded-2xl border border-[#C8DDCE] bg-[#EFF6F0] p-5">
-          <div className="flex items-center gap-2 text-[#247A50]">
+        <div
+          className="flex flex-col gap-4 rounded-2xl border p-5"
+          style={{
+            borderColor: 'var(--ls-border)',
+            background: 'var(--ls-green-light)',
+          }}
+        >
+          <div
+            className="flex items-center gap-2"
+            style={{ color: 'var(--ls-green)' }}
+          >
             <CheckCircle size={19} />
             <strong className="text-sm">Barcode detected</strong>
           </div>
 
-          <div className="rounded-xl bg-white p-4">
-            <p className="text-xs text-[#829187]">Barcode format</p>
-            <p className="mt-1 text-sm font-medium text-[#315A40]">
+          <div
+            className="rounded-xl p-4"
+            style={{ background: 'var(--ls-surface)' }}
+          >
+            <p className="text-xs" style={{ color: 'var(--ls-muted)' }}>
+              Barcode format
+            </p>
+            <p
+              className="mt-1 text-sm font-medium"
+              style={{ color: 'var(--ls-text)' }}
+            >
               {detectedFormat}
             </p>
 
-            <p className="mt-4 text-xs text-[#829187]">Detected number</p>
-            <p className="mt-1 break-all font-mono text-lg font-semibold text-[#153F2D]">
+            <p
+              className="mt-4 text-xs"
+              style={{ color: 'var(--ls-muted)' }}
+            >
+              Detected number
+            </p>
+            <p
+              className="mt-1 break-all font-mono text-lg font-semibold"
+              style={{ color: 'var(--ls-heading)' }}
+            >
               {detectedBarcode}
             </p>
           </div>
@@ -563,6 +686,7 @@ function BarcodeImageTab({ onResult }) {
           <Button
             fullWidth
             loading={loading}
+            disabled={loading}
             onClick={handleConfirm}
           >
             <ScanLine size={18} />
@@ -572,11 +696,19 @@ function BarcodeImageTab({ onResult }) {
       )}
 
       {status === 'fetching' && (
-        <LoadingMessage>Looking up product details...</LoadingMessage>
+        <LoadingMessage>
+          Looking up product details...
+        </LoadingMessage>
       )}
 
       {status === 'notfound' && (
-        <div className="flex items-start gap-3 rounded-xl bg-[#FCEDEA] p-4 text-sm text-[#A34F40]">
+        <div
+          className="flex items-start gap-3 rounded-xl p-4 text-sm"
+          style={{
+            background: 'var(--ls-red-light)',
+            color: 'var(--ls-red)',
+          }}
+        >
           <AlertCircle size={19} className="mt-0.5 shrink-0" />
           No barcode detected. Upload a clearer image showing the full barcode.
         </div>
@@ -594,7 +726,10 @@ function BarcodeImageTab({ onResult }) {
         </Button>
       )}
 
-      <p className="text-center text-xs text-[#829187]">
+      <p
+        className="text-center text-xs"
+        style={{ color: 'var(--ls-muted)' }}
+      >
         Supported image formats: JPG, PNG and WEBP.
       </p>
     </div>
@@ -641,14 +776,12 @@ function IngredientImageTab({ onResult }) {
     setFile(null);
     setPreview(null);
 
-    if (fileRef.current) {
-      fileRef.current.value = '';
-    }
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   const handleAnalyze = async () => {
-    if (!file) {
-      toast.error('Please upload an ingredients image first.');
+    if (!file || loading) {
+      if (!file) toast.error('Please upload an ingredients image first.');
       return;
     }
 
@@ -660,7 +793,7 @@ function IngredientImageTab({ onResult }) {
 
       const result = await scanService.scanIngredients(formData);
 
-      toast.success('Ingredients analyzed successfully!');
+      // Already analyzed: only navigate to the result.
       onResult(result);
     } catch (error) {
       console.error('[Ingredients OCR Error]', error);
@@ -714,9 +847,19 @@ function IngredientImageTab({ onResult }) {
         </LoadingMessage>
       )}
 
-      <div className="flex items-start gap-3 rounded-xl bg-[#EFF5EF] p-4">
-        <ShieldCheck size={18} className="mt-0.5 shrink-0 text-[#247A50]" />
-        <p className="text-xs leading-5 text-[#718477]">
+      <div
+        className="flex items-start gap-3 rounded-xl p-4"
+        style={{ background: 'var(--ls-green-light)' }}
+      >
+        <ShieldCheck
+          size={18}
+          className="mt-0.5 shrink-0"
+          style={{ color: 'var(--ls-green)' }}
+        />
+        <p
+          className="text-xs leading-5"
+          style={{ color: 'var(--ls-muted)' }}
+        >
           For accurate results, upload a clear, readable photo of the complete
           ingredients label. Your personalized analysis uses your saved
           dietary and health profile.
@@ -736,112 +879,204 @@ export default function Scan() {
 
   const navigate = useNavigate();
 
+  // Accept ONLY a barcode string here.
+  // Never pass a scan result object into scanService.scanBarcode().
   const handleBarcodeResult = useCallback(
-    async (barcode) => {
+    async (value) => {
+      const barcode =
+        typeof value === 'string'
+          ? value.trim()
+          : '';
+
+      if (!/^\d{8,14}$/.test(barcode)) {
+        console.error('Invalid barcode received:', value);
+        toast.error('Please provide a valid barcode number.');
+        return;
+      }
+
       setScanning(true);
 
       try {
         const result = await scanService.scanBarcode(barcode);
-
-        if (!result?._id) {
-          toast.error('Scan completed, but scan ID was not returned.');
-          console.error('Invalid scan result:', result);
-          return;
-        }
-
-        toast.success('Product found!');
-
-        navigate(`/result/${result._id}`, {
-          state: { result },
-        });
+        handleResultReady(result, 'Product found!');
       } catch (error) {
+        console.error('Barcode scan error:', error);
         toast.error(error.message || 'Product not found.');
       } finally {
         setScanning(false);
       }
     },
-    [navigate]
+    []
   );
 
+  // Accept ONLY an already completed scan result object here.
+  // This function does not make another API request.
   const handleResultReady = useCallback(
-    (result) => {
-      if (!result?._id) {
+    (result, successMessage) => {
+      const scanId = result?._id || result?.scanId;
+
+      if (!scanId) {
         toast.error('Scan completed, but scan ID was not returned.');
         console.error('Invalid scan result:', result);
         return;
       }
 
-      navigate(`/result/${result._id}`, {
+      if (successMessage) {
+        toast.success(successMessage);
+      }
+
+      navigate(`/result/${scanId}`, {
         state: { result },
       });
     },
     [navigate]
   );
 
+  const handleBarcodeResultWithNavigation = useCallback(
+    async (barcode) => {
+      const result = await scanService.scanBarcode(
+        typeof barcode === 'string' ? barcode.trim() : ''
+      );
+
+      handleResultReady(result, 'Product found!');
+    },
+    [handleResultReady]
+  );
+
   return (
     <div className="mx-auto max-w-4xl animate-fade-in pb-10">
-      {/* Page header */}
       <div className="mb-8">
         <div className="mb-3 flex items-center gap-2">
-          <span className="h-px w-6" style={{ background: 'var(--ls-green)' }} />
-          <span className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--ls-green)' }}>Food intelligence</span>
+          <span
+            className="h-px w-6"
+            style={{ background: 'var(--ls-green)' }}
+          />
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.22em]"
+            style={{ color: 'var(--ls-green)' }}
+          >
+            Food intelligence
+          </span>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--ls-heading)', fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>Scan a Product</h1>
-        <p className="mt-3 max-w-xl text-sm leading-6" style={{ color: 'var(--ls-muted)' }}>
-          Discover what goes into your food. Choose a scanning method to get personalized insights based on your profile.
+
+        <h1
+          className="text-3xl font-bold tracking-tight sm:text-4xl"
+          style={{
+            color: 'var(--ls-heading)',
+            fontFamily: 'Plus Jakarta Sans, Inter, sans-serif',
+          }}
+        >
+          Scan a Product
+        </h1>
+
+        <p
+          className="mt-3 max-w-xl text-sm leading-6"
+          style={{ color: 'var(--ls-muted)' }}
+        >
+          Discover what goes into your food. Choose a scanning method to get
+          personalized insights based on your profile.
         </p>
       </div>
 
-      {/* Tab selector */}
       <div className="mb-6 grid grid-cols-2 gap-2 sm:flex sm:gap-2">
         {SCAN_OPTIONS.map((option) => {
           const Icon = option.icon;
           const isActive = activeTab === option.id;
+
           return (
             <button
               key={option.id}
               type="button"
               onClick={() => setActiveTab(option.id)}
-              className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-150 border sm:flex-1"
+              className="flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all sm:flex-1"
               style={{
-                background: isActive ? 'var(--ls-green)' : 'var(--ls-surface)',
+                background: isActive
+                  ? 'var(--ls-green)'
+                  : 'var(--ls-surface)',
                 color: isActive ? '#FFFFFF' : 'var(--ls-muted)',
-                borderColor: isActive ? 'var(--ls-green)' : 'var(--ls-border)',
-                boxShadow: isActive ? '0 2px 8px rgba(34,113,74,0.20)' : 'none',
+                borderColor: isActive
+                  ? 'var(--ls-green)'
+                  : 'var(--ls-border)',
+                boxShadow: isActive
+                  ? '0 2px 8px rgba(34,113,74,0.15)'
+                  : 'none',
               }}
             >
               <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
-              <span className="hidden xs:inline sm:inline">{option.title}</span>
+              <span>{option.title}</span>
             </button>
           );
         })}
       </div>
 
-      {/* Tab content card */}
       {scanning && (
-        <div className="mb-4 flex items-center justify-center gap-3 rounded-xl px-4 py-4 text-sm border"
-          style={{ background: 'var(--ls-green-light)', color: 'var(--ls-green)', borderColor: 'var(--ls-border)' }}>
-          <Loader2 size={19} className="animate-spin shrink-0" />
-          Looking up product details…
+        <div
+          className="mb-4 flex items-center justify-center gap-3 rounded-xl border px-4 py-4 text-sm"
+          style={{
+            background: 'var(--ls-green-light)',
+            color: 'var(--ls-green)',
+            borderColor: 'var(--ls-border)',
+          }}
+        >
+          <Loader2 size={19} className="shrink-0 animate-spin" />
+          Looking up product details...
         </div>
       )}
 
-      <div className="rounded-2xl border p-6 sm:p-8 min-h-[380px] flex items-start justify-center"
-        style={{ background: 'var(--ls-surface)', borderColor: 'var(--ls-border)', boxShadow: 'var(--shadow-card)' }}>
+      <div
+        className="flex min-h-[380px] items-start justify-center rounded-2xl border p-6 sm:p-8"
+        style={{
+          background: 'var(--ls-surface)',
+          borderColor: 'var(--ls-border)',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
         <div className="w-full">
-          {activeTab === 'camera' && <CameraTab onResult={handleBarcodeResult} />}
-          {activeTab === 'manual' && <ManualTab onResult={handleBarcodeResult} />}
-          {activeTab === 'barcode-image' && <BarcodeImageTab onResult={handleResultReady} />}
-          {activeTab === 'ingredient-image' && <IngredientImageTab onResult={handleResultReady} />}
+          {activeTab === 'camera' && (
+            <CameraTab onResult={handleBarcodeResultWithNavigation} />
+          )}
+
+          {activeTab === 'manual' && (
+            <ManualTab onResult={handleBarcodeResultWithNavigation} />
+          )}
+
+          {activeTab === 'barcode-image' && (
+            <BarcodeImageTab
+              onResult={(result) =>
+                handleResultReady(result, 'Product found!')
+              }
+            />
+          )}
+
+          {activeTab === 'ingredient-image' && (
+            <IngredientImageTab
+              onResult={(result) =>
+                handleResultReady(result, 'Ingredients analyzed successfully!')
+              }
+            />
+          )}
         </div>
       </div>
 
-      {/* Footer note */}
-      <div className="mt-5 flex items-start gap-3 rounded-xl border p-4"
-        style={{ background: 'var(--ls-green-soft)', borderColor: 'var(--ls-border)' }}>
-        <ShieldCheck size={17} className="mt-0.5 shrink-0" style={{ color: 'var(--ls-green)' }} />
-        <p className="text-xs leading-5" style={{ color: 'var(--ls-muted)' }}>
-          Results are for informational purposes only. FoodLens uses AI-powered analysis based on your saved profile. It does not replace professional medical advice.
+      <div
+        className="mt-5 flex items-start gap-3 rounded-xl border p-4"
+        style={{
+          background: 'var(--ls-green-soft)',
+          borderColor: 'var(--ls-border)',
+        }}
+      >
+        <ShieldCheck
+          size={17}
+          className="mt-0.5 shrink-0"
+          style={{ color: 'var(--ls-green)' }}
+        />
+        <p
+          className="text-xs leading-5"
+          style={{ color: 'var(--ls-muted)' }}
+        >
+          Results are for informational purposes only. FoodLens uses AI-powered
+          analysis based on your saved profile. It does not replace
+          professional medical advice.
         </p>
       </div>
     </div>

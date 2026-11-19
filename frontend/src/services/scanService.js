@@ -174,6 +174,8 @@ export const scanService = {
    * Barcode scanning
    */
   async scanBarcode(barcode) {
+
+
     if (USE_MOCK) {
       await delay(1200);
 
@@ -185,37 +187,38 @@ export const scanService = {
     }
 
     try {
+      console.log("SCAN SERVICE RECEIVED:", barcode);
+console.log("SCAN SERVICE TYPE:", typeof barcode);
+
+
       const { data } = await api.post('/scan/barcode', {
         barcode,
       });
 
       return normalizeScanResult(data);
     } catch (err) {
-      console.log('SCAN ERROR:', err);
-      console.log('STATUS:', err.response?.status);
-      console.log('BACKEND RESPONSE:', err.response?.data);
+  console.error('========== BARCODE SCAN ERROR ==========');
+  console.error('Barcode:', barcode);
+  console.error('Error message:', err.message);
+  console.error('Error code:', err.code);
+  console.error('Request URL:', err.config?.baseURL + err.config?.url);
+  console.error('Request data:', err.config?.data);
+  console.error('HTTP status:', err.response?.status);
+  console.error('Backend response:', err.response?.data);
+  console.error('========================================');
 
-      const status = err.response?.status;
-      const serverMsg = err.response?.data?.message;
+  if (!err.response) {
+    throw {
+      message: err.message || 'Backend server is unreachable.',
+    };
+  }
 
-      if (!err.response) {
-        throw {
-          message: 'Backend server is unreachable.',
-        };
-      }
-
-      if (status === 502 || status === 503) {
-        throw {
-          message:
-            serverMsg ||
-            'Product data service is unavailable.',
-        };
-      }
-
-      throw {
-        message: serverMsg || 'Something went wrong.',
-      };
-    }
+  throw {
+    message:
+      err.response?.data?.message ||
+      'Something went wrong.',
+  };
+}
   },
 
   /**

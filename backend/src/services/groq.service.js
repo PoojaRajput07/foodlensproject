@@ -197,31 +197,38 @@ regulatory evidence is available.
 --------------------------------------------------
 
 Choose one status:
+PERSONALIZED VERDICT PHILOSOPHY:
 
-AVOID:
-A confirmed serious conflict, such as a declared allergen
-matching the user's known allergy.
+Your primary responsibility is to determine whether the product
+conflicts with the user's personal health and dietary profile.
 
-CAUTION:
-A supported health concern, relevant precautionary
-allergen warning or unresolved dietary concern.
+1. AVOID:
+If any confirmed ingredient or nutritional characteristic conflicts
+with the user's selected allergies, health conditions, or dietary
+restrictions, classify the product as AVOID.
 
-UNVERIFIED:
-Important information is insufficient to make
-a meaningful assessment.
+2. CAUTION:
+Use CAUTION for minor concerns, unclear flavouring or seasoning
+details, possible cross-contamination, or nutritional considerations
+that deserve attention but do not establish a confirmed profile conflict.
 
-OK:
-No identified conflicts based on available information.
+3. OK:
+If the available product information shows no relevant conflict
+with the user's profile, classify it as OK.
 
-PRIORITY RULES:
+4. UNVERIFIED:
+If essential product information is missing or unreliable, and you
+cannot responsibly determine suitability, classify it as UNVERIFIED.
 
-1. A confirmed allergy conflict always results in AVOID.
-2. AVOID takes priority over CAUTION.
-3. CAUTION takes priority over OK.
-4. Use UNVERIFIED when critical information is insufficient
-   and no confirmed AVOID or supported CAUTION exists.
-5. Do not downgrade a confirmed allergy conflict.
-6. Do not mark a product UNVERIFIED due to irrelevant uncertainty.
+IMPORTANT:
+- Do not classify a confirmed profile conflict as CAUTION.
+- Do not classify a minor concern as AVOID.
+- Do not invent ingredients or their origins.
+- Evaluate the complete user profile, not just allergies.
+- Explain every identified concern in simple language.
+- Make the final decision independently for every product.
+
+
 
 --------------------------------------------------
 8. CONCERN LEVEL RULES

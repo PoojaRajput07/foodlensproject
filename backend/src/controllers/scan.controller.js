@@ -159,6 +159,9 @@ export const scanFood = async (req, res) => {
 export const scanBarcode = async (req, res) => {
   try {
     const { barcode } = req.body;
+    console.log("REQUEST BODY:", req.body);
+console.log("BARCODE VALUE:", barcode);
+console.log("BARCODE TYPE:", typeof barcode);
 
     // 1. Validate barcode
     if (
