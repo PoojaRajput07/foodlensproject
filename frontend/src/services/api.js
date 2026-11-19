@@ -11,9 +11,6 @@ const api = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Request interceptor: attach JWT

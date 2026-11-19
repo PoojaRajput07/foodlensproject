@@ -226,6 +226,7 @@ console.log("SCAN SERVICE TYPE:", typeof barcode);
    * FormData key must be "image".
    */
   
+
 async scanIngredients(formData) {
   if (USE_MOCK) {
     await delay(1500);
@@ -237,30 +238,37 @@ async scanIngredients(formData) {
   }
 
   try {
-   
-const { data } = await api.post(
-  '/scan/ocr',
-  formData,
-  {
-    headers: {
-      'Content-Type': undefined,
-    },
-  }
-);
+    console.log('OCR SCAN STARTED');
+console.log('OCR FILE:', formData.get('image'));
+console.log('OCR FORMDATA:', [...formData.entries()]);
 
+const { data } = await api.post('/scan/ocr', formData, {
+  timeout: 90000,
+});
+
+    console.log('OCR SCAN SUCCESS:', data);
 
     return normalizeScanResult(data);
+
   } catch (err) {
-    console.log('OCR SCAN ERROR:', err);
-    console.log('BACKEND RESPONSE:', err.response?.data);
+    console.error('========== OCR SCAN ERROR ==========');
+    console.error('Message:', err.message);
+    console.error('Code:', err.code);
+    console.error('Status:', err.response?.status);
+    console.error('Backend response:', err.response?.data);
+    console.error('Request URL:', err.config?.baseURL + err.config?.url);
+    console.error('====================================');
 
     throw {
       message:
         err.response?.data?.message ||
-        'Could not scan the ingredient image.',
+        (err.code === 'ECONNABORTED'
+          ? 'Ingredient analysis is taking longer than expected. Please check Scan History before trying again.'
+          : 'Could not scan the ingredient image. Please try again.'),
     };
   }
 },
+
 
   /**
    * Manual ingredient scanning

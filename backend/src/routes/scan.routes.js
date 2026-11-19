@@ -39,7 +39,21 @@ const upload = multer({
 // Scan routes
 router.post("/ingredients", verifyuser, scanFood);
 router.post("/barcode", verifyuser, scanBarcode);
-router.post("/ocr", verifyuser, upload.single("image"), scanOCR);
+router.post(
+  "/ocr",
+  verifyuser,
+  (req, res, next) => {
+    console.log("OCR REQUEST RECEIVED");
+    next();
+  },
+  upload.single("image"),
+  (req, res, next) => {
+    console.log("MULTER FILE:", req.file);
+    console.log("MULTER BODY:", req.body);
+    next();
+  },
+  scanOCR
+);
 
 // History routes (also accessible here for convenience)
 router.get("/history", verifyuser, getScanHistory);
