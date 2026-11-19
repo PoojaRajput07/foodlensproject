@@ -188,7 +188,7 @@ export default function Dashboard() {
           </p>
         </div>
         <form onSubmit={handleSearch} className="flex w-full gap-2 sm:max-w-sm">
-          <div className="relative flex-1">
+          {/* <div className="relative flex-1">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--ls-subtle)' }} />
             <input
               id="dashboard-search"
@@ -198,10 +198,10 @@ export default function Dashboard() {
               aria-label="Search products or ingredients"
               className="ls-input h-11 pl-10 text-sm"
             />
-          </div>
-          <button type="submit" className="ls-btn ls-btn-secondary h-11 px-4 text-sm whitespace-nowrap">
+          </div> */}
+          {/* <button type="submit" className="ls-btn ls-btn-secondary h-11 px-4 text-sm whitespace-nowrap">
             Search
-          </button>
+          </button> */}
         </form>
       </section>
 

@@ -1,26 +1,26 @@
 
-import { useState, useEffect } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Bookmark,
   BookmarkCheck,
-  XCircle,
   AlertTriangle,
-  CheckCircle,
-  HelpCircle,
-  Info,
-  ShieldAlert,
-  HeartPulse,
-  Leaf,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Flame,
+  CircleHelp,
   Droplets,
-  Wheat,
-  Beef,
+  Flame,
+  HeartPulse,
+  Info,
+  Leaf,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Wheat,
+  Beef,
+  XCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -35,50 +35,121 @@ const STATUS_CONFIG = {
     color: '#B94B45',
     bg: '#FCEFED',
     border: '#F1D2CE',
-    description: 'This product has a confirmed conflict with your health profile.',
+    description: 'This product conflicts with your saved profile.',
   },
+
   CAUTION: {
     label: 'Caution',
     icon: AlertTriangle,
-    color: '#B47B25',
+    color: '#A87522',
     bg: '#FBF4E6',
     border: '#EEDDB9',
-    description: 'Some product information needs your attention.',
+    description: 'Some concerns need your attention before consuming.',
   },
+
   OK: {
-    label: 'Looks suitable',
-    icon: CheckCircle,
+    label: 'Compatible',
+    icon: CheckCircle2,
     color: '#247A50',
     bg: '#EAF4EC',
     border: '#CDE2D1',
-    description: 'No conflicts were identified from the available information.',
+    description: 'This product appears compatible with your saved profile.',
   },
+
   UNVERIFIED: {
     label: 'Unverified',
-    icon: HelpCircle,
+    icon: CircleHelp,
     color: '#687B70',
     bg: '#F0F3F0',
     border: '#DCE5DE',
-    description: 'There is not enough information for a reliable assessment.',
+    description: 'There is insufficient information to verify compatibility.',
   },
 };
 
+const CONCERN_CONFIG = {
+  none: {
+    label: 'No identified concern',
+    color: '#247A50',
+    bg: '#EAF4EC',
+  },
+  possible: {
+    label: 'Possible concern',
+    color: '#A87522',
+    bg: '#FBF4E6',
+  },
+  confirmed: {
+    label: 'Confirmed concern',
+    color: '#B94B45',
+    bg: '#FCEFED',
+  },
+  unknown: {
+    label: 'Information unavailable',
+    color: '#687B70',
+    bg: '#F0F3F0',
+  },
+};
+
+const cx = (...classes) => classes.filter(Boolean).join(' ');
+
 function getStatus(status) {
-  return STATUS_CONFIG[String(status || 'UNVERIFIED').toUpperCase()]
-    || STATUS_CONFIG.UNVERIFIED;
+  const normalized = String(status || 'UNVERIFIED')
+    .trim()
+    .toUpperCase();
+
+  if (normalized === 'COMPATIBLE') {
+    return STATUS_CONFIG.OK;
+  }
+
+  return STATUS_CONFIG[normalized] || STATUS_CONFIG.UNVERIFIED;
 }
 
-function StatusBadge({ status }) {
+function formatTag(value) {
+  return String(value ?? '')
+    .replace(/^en:/, '')
+    .replace(/[-_]/g, ' ');
+}
+
+function SectionHeading({ eyebrow, title, description, icon: Icon }) {
+  return (
+    <div className="mb-5 flex items-start gap-3">
+      {Icon && (
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF3EB] text-[#247A50]">
+          <Icon size={19} />
+        </div>
+      )}
+
+      <div className="min-w-0">
+        {eyebrow && (
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6C9477]">
+            {eyebrow}
+          </p>
+        )}
+
+        <h2 className="text-lg font-semibold tracking-tight text-[#153F2D]">
+          {title}
+        </h2>
+
+        {description && (
+          <p className="mt-1 text-sm leading-6 text-[#829187]">
+            {description}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }) {
   const config = getStatus(status);
   const Icon = config.icon;
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold"
+      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold"
       style={{
-        background: config.bg,
+        backgroundColor: config.bg,
         color: config.color,
-        border: `1px solid ${config.border}`,
+        borderColor: config.border,
       }}
     >
       <Icon size={14} />
@@ -87,30 +158,158 @@ function StatusBadge({ status }) {
   );
 }
 
-function SectionCard({ title, subtitle, icon: Icon, children }) {
+/* Large highlighted verdict section */
+function VerdictBanner({ status }) {
+  const config = getStatus(status);
+  const Icon = config.icon;
+  const normalizedStatus = String(status || '').toUpperCase();
+
+  const isAvoid = normalizedStatus === 'AVOID';
+  const isCaution = normalizedStatus === 'CAUTION';
+  const isUnverified = normalizedStatus === 'UNVERIFIED';
+
+  const badgeText = isAvoid
+    ? 'Profile conflict found'
+    : isCaution
+      ? 'Review before consuming'
+      : isUnverified
+        ? 'Assessment incomplete'
+        : 'Profile check complete';
+
+  const BadgeIcon = isAvoid
+    ? ShieldAlert
+    : isCaution
+      ? AlertTriangle
+      : isUnverified
+        ? CircleHelp
+        : ShieldCheck;
+
   return (
-    <section className="mb-5 overflow-hidden rounded-2xl border border-[#DFE9E0] bg-white shadow-[0_2px_12px_rgba(30,70,45,0.035)]">
-      <div className="flex items-center gap-3 border-b border-[#E8EFE8] px-5 py-5 sm:px-6">
-        {Icon && (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF3EB] text-[#247A50]">
-            <Icon size={19} />
+    <div
+      className="relative overflow-hidden border-b px-5 py-7 sm:px-8 sm:py-9"
+      style={{
+        backgroundColor: config.bg,
+        borderColor: config.border,
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        className="absolute -right-8 -top-12 h-48 w-48 rounded-full opacity-[0.07]"
+        style={{ backgroundColor: config.color }}
+      />
+
+      <div className="absolute -bottom-20 right-32 h-40 w-40 rounded-full opacity-[0.05]"
+        style={{ backgroundColor: config.color }}
+      />
+
+      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+        <div className="flex items-center gap-4 sm:gap-6">
+
+          <div
+            className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border-2 bg-white shadow-sm sm:h-24 sm:w-24"
+            style={{
+              color: config.color,
+              borderColor: config.border,
+            }}
+          >
+            <Icon size={42} strokeWidth={2} />
           </div>
-        )}
 
-        <div className="min-w-0">
-          <h2 className="font-semibold text-[#153F2D]">{title}</h2>
-          {subtitle && (
-            <p className="mt-1 text-xs leading-5 text-[#829187]">{subtitle}</p>
-          )}
+          <div className="min-w-0">
+
+            <p
+              className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em]"
+              style={{ color: config.color }}
+            >
+              Your personalized verdict
+            </p>
+
+            <h2
+              className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl"
+              style={{ color: config.color }}
+            >
+              {config.label}
+            </h2>
+
+            <p
+              className="mt-2 max-w-xl text-sm leading-6 sm:text-base"
+              style={{ color: config.color, opacity: 0.9 }}
+            >
+              {config.description}
+            </p>
+
+          </div>
         </div>
-      </div>
 
-      <div className="p-5 sm:p-6">{children}</div>
+        <div
+          className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border bg-white px-4 py-2.5 text-xs font-semibold shadow-sm"
+          style={{
+            color: config.color,
+            borderColor: config.border,
+          }}
+        >
+          <BadgeIcon size={16} />
+          {badgeText}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function Panel({ children, className = '' }) {
+  return (
+    <section
+      className={cx(
+        'rounded-2xl border border-[#DFE9E0] bg-white p-5 shadow-[0_3px_16px_rgba(30,70,45,0.035)] sm:p-6',
+        className
+      )}
+    >
+      {children}
     </section>
   );
 }
 
-function AssessmentCard({ title, icon: Icon, assessment }) {
+function InsightTile({
+  label,
+  value,
+  unit,
+  icon: Icon,
+  emphasis = false,
+}) {
+  if (value === null || value === undefined || value === '') return null;
+
+  return (
+    <div
+      className={cx(
+        'rounded-xl border p-4',
+        emphasis
+          ? 'border-[#EEDDB9] bg-[#FBF7EE]'
+          : 'border-[#E1EAE2] bg-[#FAFCFA]'
+      )}
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-[#829187]">{label}</p>
+
+        <Icon
+          size={16}
+          className={emphasis ? 'text-[#A87522]' : 'text-[#6C9B79]'}
+        />
+      </div>
+
+      <p className="text-xl font-semibold tracking-tight text-[#153F2D]">
+        {value}
+        <span className="ml-1 text-xs font-medium text-[#829187]">
+          {unit}
+        </span>
+      </p>
+    </div>
+  );
+}
+
+function AssessmentRow({ title, icon: Icon, assessment }) {
   if (!assessment) return null;
 
   const reasons = Array.isArray(assessment.reasons)
@@ -120,29 +319,36 @@ function AssessmentCard({ title, icon: Icon, assessment }) {
   const config = getStatus(assessment.status);
 
   return (
-    <div className="rounded-xl border border-[#E1EAE2] bg-[#FAFCFA] p-4 sm:p-5">
+    <div className="rounded-xl border border-[#E1EAE2] bg-[#FAFCFA] p-4">
+
       <div className="flex flex-wrap items-center justify-between gap-3">
+
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EAF3EB] text-[#39845A]">
             <Icon size={17} />
           </div>
-          <h3 className="text-sm font-semibold text-[#254B35]">{title}</h3>
+
+          <h3 className="text-sm font-semibold text-[#254B35]">
+            {title}
+          </h3>
         </div>
 
-        <StatusBadge status={assessment.status} />
+        <StatusPill status={assessment.status} />
+
       </div>
 
-      <div className="mt-4 border-t border-[#E7EEE7] pt-3">
-        {reasons.length > 0 ? (
-          <ul className="space-y-2.5">
+      <div className="mt-3 border-t border-[#E7EEE7] pt-3">
+
+        {reasons.length ? (
+          <ul className="space-y-2">
             {reasons.map((reason, index) => (
               <li
-                key={index}
-                className="flex items-start gap-2.5 text-sm leading-6 text-[#718477]"
+                key={`${title}-${index}`}
+                className="flex items-start gap-2 text-sm leading-6 text-[#718477]"
               >
                 <span
                   className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ background: config.color }}
+                  style={{ backgroundColor: config.color }}
                 />
                 {reason}
               </li>
@@ -153,68 +359,58 @@ function AssessmentCard({ title, icon: Icon, assessment }) {
             No specific concerns reported.
           </p>
         )}
+
       </div>
     </div>
   );
 }
 
-function IngredientCard({ item }) {
+function IngredientRow({ item }) {
   const [expanded, setExpanded] = useState(false);
 
-  const level = String(item.concernLevel || 'none').toLowerCase();
+  const level = String(item.concernLevel || 'unknown').toLowerCase();
 
-  const levelConfig = {
-    none: {
-      label: 'No identified concern',
-      color: '#247A50',
-      bg: '#EAF4EC',
-    },
-    possible: {
-      label: 'Possible concern',
-      color: '#B47B25',
-      bg: '#FBF4E6',
-    },
-    confirmed: {
-      label: 'Confirmed concern',
-      color: '#B94B45',
-      bg: '#FCEFED',
-    },
-    unknown: {
-      label: 'Information unknown',
-      color: '#687B70',
-      bg: '#F0F3F0',
-    },
-  };
+  const config = CONCERN_CONFIG[level] || CONCERN_CONFIG.unknown;
 
-  const config = levelConfig[level] || levelConfig.unknown;
+  const concerns = Array.isArray(item.profileConcerns)
+    ? item.profileConcerns
+    : [];
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#DFE9E0] bg-white transition hover:border-[#BFD8C5]">
+    <div className="overflow-hidden rounded-xl border border-[#DFE9E0] bg-white">
+
       <button
         type="button"
-        onClick={() => setExpanded((value) => !value)}
+        onClick={() => setExpanded((current) => !current)}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-3 p-4 text-left"
+        className="flex w-full items-center justify-between gap-3 p-4 text-left transition hover:bg-[#FAFCFA]"
       >
         <div className="flex min-w-0 items-center gap-3">
+
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF5EF] text-[#39845A]">
             <Leaf size={18} />
           </div>
 
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-[#254B35]">
-              {item.commonName || item.ingredient}
+            <h3 className="truncate text-sm font-semibold capitalize text-[#254B35]">
+              {item.commonName || item.ingredient || 'Ingredient'}
             </h3>
+
             <p className="mt-1 truncate text-xs text-[#829187]">
               {item.ingredient}
             </p>
           </div>
+
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+
           <span
             className="hidden rounded-full px-2.5 py-1 text-[10px] font-semibold sm:inline-flex"
-            style={{ background: config.bg, color: config.color }}
+            style={{
+              backgroundColor: config.bg,
+              color: config.color,
+            }}
           >
             {config.label}
           </span>
@@ -222,13 +418,17 @@ function IngredientCard({ item }) {
           <span className="text-[#829187]">
             {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
           </span>
+
         </div>
       </button>
 
       <div className="px-4 pb-3 sm:hidden">
         <span
           className="rounded-full px-2.5 py-1 text-[10px] font-semibold"
-          style={{ background: config.bg, color: config.color }}
+          style={{
+            backgroundColor: config.bg,
+            color: config.color,
+          }}
         >
           {config.label}
         </span>
@@ -236,94 +436,101 @@ function IngredientCard({ item }) {
 
       {expanded && (
         <div className="border-t border-[#E7EEE7] bg-[#FAFCFA] p-4">
+
           <p className="text-sm leading-6 text-[#718477]">
             {item.explanation || 'No additional explanation available.'}
           </p>
 
-          {item.profileConcerns?.length > 0 && (
+          {concerns.length > 0 && (
             <div className="mt-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#315A40]">
-                Your profile concerns
+                Profile-related concerns
               </p>
 
               <div className="flex flex-wrap gap-2">
-                {item.profileConcerns.map((concern, index) => (
+                {concerns.map((concern, index) => (
                   <span
-                    key={index}
+                    key={`${concern}-${index}`}
                     className="rounded-lg border border-[#EEDDB9] bg-[#FBF4E6] px-3 py-1.5 text-xs text-[#9A6B24]"
                   >
-                    {concern.replace(/[-_]/g, ' ')}
+                    {formatTag(concern)}
                   </span>
                 ))}
               </div>
             </div>
           )}
+
         </div>
       )}
+
     </div>
   );
 }
 
-function NutritionItem({ label, value, unit, icon: Icon }) {
-  if (value === null || value === undefined || value === '') return null;
-
-  return (
-    <div className="rounded-xl border border-[#E1EAE2] bg-[#FAFCFA] p-4 transition hover:border-[#BFD8C5]">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <p className="text-xs font-medium text-[#829187]">{label}</p>
-        <Icon size={16} className="text-[#6C9B79]" />
-      </div>
-
-      <p className="text-xl font-semibold tracking-tight text-[#153F2D]">
-        {value}
-        <span className="ml-1 text-xs font-medium text-[#829187]">{unit}</span>
-      </p>
-    </div>
-  );
-}
-
-function TagList({ items, variant = 'green', emptyText }) {
+function TagGroup({
+  title,
+  items,
+  variant = 'green',
+  emptyText,
+}) {
   const styles = {
     green: 'border-[#D4E7D8] bg-[#EFF6F0] text-[#28764B]',
     red: 'border-[#F1D2CE] bg-[#FCEFED] text-[#A84E46]',
     neutral: 'border-[#E0E9E1] bg-[#F5F8F5] text-[#687B70]',
   };
 
-  if (!items?.length) {
-    return <p className="text-sm text-[#829187]">{emptyText}</p>;
-  }
+  const list = Array.isArray(items) ? items : [];
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {items.map((item) => (
-        <span
-          key={item}
-          className={`rounded-lg border px-3 py-2 text-xs font-medium capitalize ${styles[variant]}`}
-        >
-          {String(item).replace(/^en:/, '').replace(/-/g, ' ')}
-        </span>
-      ))}
+    <div>
+      <h3 className="mb-3 text-sm font-semibold capitalize text-[#315A40]">
+        {title}
+      </h3>
+
+      {list.length ? (
+        <div className="flex flex-wrap gap-2">
+          {list.map((item, index) => (
+            <span
+              key={`${item}-${index}`}
+              className={cx(
+                'rounded-lg border px-3 py-2 text-xs font-medium capitalize',
+                styles[variant]
+              )}
+            >
+              {formatTag(item)}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-[#829187]">{emptyText}</p>
+      )}
     </div>
   );
 }
 
 export default function ScanResult() {
   const { id } = useParams();
+
   const { state } = useLocation();
+
   const navigate = useNavigate();
 
   const [result, setResult] = useState(state?.result || null);
-  const [loading, setLoading] = useState(!state?.result);
-  const [saved, setSaved] = useState(state?.result?.isSaved || false);
-  const [saving, setSaving] = useState(false);
 
+  const [loading, setLoading] = useState(!state?.result);
+
+  const [saved, setSaved] = useState(
+    Boolean(state?.result?.isSaved)
+  );
+
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (state?.result) {
       setResult(state.result);
       setSaved(Boolean(state.result.isSaved));
       setLoading(false);
-      return;
+      return undefined;
     }
 
     let active = true;
@@ -333,10 +540,10 @@ export default function ScanResult() {
     scanService
       .getScanById(id)
       .then((data) => {
-        if (active) {
-          setResult(data);
-          setSaved(Boolean(data?.isSaved));
-        }
+        if (!active) return;
+
+        setResult(data);
+        setSaved(Boolean(data?.isSaved));
       })
       .catch(() => {
         if (active) toast.error('Could not load scan result.');
@@ -350,17 +557,142 @@ export default function ScanResult() {
     };
   }, [id, state?.result]);
 
+  const scan = useMemo(
+    () =>
+      result?.scan ||
+      result?.data?.scan ||
+      result?.data ||
+      result ||
+      {},
+    [result]
+  );
+
+  const product = scan.product || {};
+
+  const ai = scan.aiAnalysis || {};
+
+  const assessment = ai.personalizedAssessment || {};
+
+  const productAnalysis =
+    product.productAnalysis || scan.productAnalysis || {};
+
+  const nutrition = scan.nutrition || {};
+
+  const ingredientAnalysis = Array.isArray(ai.ingredientAnalysis)
+    ? ai.ingredientAnalysis
+    : [];
+
+  const ingredients = Array.isArray(scan.ingredients)
+    ? scan.ingredients
+    : Array.isArray(product.ingredients)
+      ? product.ingredients
+      : typeof product.ingredientsText === 'string'
+        ? product.ingredientsText
+            .split(',')
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [];
+
+ 
+const verdict =
+  scan.overallVerdict ||
+  scan.verdict ||
+  assessment.status ||
+  ai.overallAssessment ||
+  'UNVERIFIED';
+
+const verdictConfig = getStatus(verdict);
+const VerdictIcon = verdictConfig.icon;
+  
+
+
+  const productName =
+    product.name || scan.productName || 'Unknown product';
+
+  const brand = product.brand || scan.brand || '';
+
+  const image = product.image || null;
+
+  const scanId = scan.scanId || scan._id || id;
+
+  const analyzedIngredients = new Set(
+    ingredientAnalysis.map((item) =>
+      String(item.ingredient || '').toLowerCase()
+    )
+  );
+
+  const nutritionItems = [
+    {
+      label: 'Energy',
+      value: nutrition.energyKcal100g,
+      unit: 'kcal',
+      icon: Flame,
+    },
+    {
+      label: 'Total sugars',
+      value: nutrition.sugars100g,
+      unit: 'g',
+      icon: Droplets,
+      emphasis: true,
+    },
+    {
+      label: 'Carbohydrates',
+      value: nutrition.carbohydrates100g,
+      unit: 'g',
+      icon: Wheat,
+    },
+    {
+      label: 'Total fat',
+      value: nutrition.fat100g,
+      unit: 'g',
+      icon: Droplets,
+    },
+    {
+      label: 'Saturated fat',
+      value: nutrition.saturatedFat100g,
+      unit: 'g',
+      icon: Droplets,
+      emphasis: true,
+    },
+    {
+      label: 'Protein',
+      value: nutrition.proteins100g,
+      unit: 'g',
+      icon: Beef,
+    },
+    {
+      label: 'Salt',
+      value: nutrition.salt100g,
+      unit: 'g',
+      icon: Droplets,
+    },
+    {
+      label: 'Sodium',
+      value: nutrition.sodium100g,
+      unit: 'g',
+      icon: Info,
+    },
+  ].filter(
+    (item) =>
+      item.value !== null &&
+      item.value !== undefined &&
+      item.value !== ''
+  );
+
   const handleSave = async () => {
-    if (saving) return;
+    if (saving || !scanId) return;
 
     setSaving(true);
 
     try {
-      await scanService.saveScan(id, !saved);
-      setSaved((value) => !value);
+      await scanService.saveScan(scanId, !saved);
+
+      setSaved((current) => !current);
 
       toast.success(
-        saved ? 'Removed from saved items.' : 'Scan saved successfully!'
+        saved
+          ? 'Removed from saved items.'
+          : 'Scan saved successfully!'
       );
     } catch {
       toast.error('Could not save scan.');
@@ -369,8 +701,6 @@ export default function ScanResult() {
     }
   };
 
-
-
   if (loading) {
     return <InlineLoader message="Loading result..." />;
   }
@@ -378,8 +708,9 @@ export default function ScanResult() {
   if (!result) {
     return (
       <div className="mx-auto max-w-xl rounded-2xl border border-[#DFE9E0] bg-white px-6 py-16 text-center shadow-sm">
+
         <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EFF5EF] text-[#39845A]">
-          <HelpCircle size={32} />
+          <CircleHelp size={32} />
         </div>
 
         <h2 className="text-xl font-semibold text-[#153F2D]">
@@ -391,58 +722,21 @@ export default function ScanResult() {
         </p>
 
         <div className="mt-6">
-          <Button onClick={() => navigate('/scan')}>Scan Again</Button>
+          <Button onClick={() => navigate('/scan')}>
+            Scan Again
+          </Button>
         </div>
+
       </div>
     );
   }
 
-  const scan = result.scan || result.data?.scan || result.data || result;
-  const product = scan.product || {};
-  const ai = scan.aiAnalysis || {};
-  const assessment = ai.personalizedAssessment || {};
-
-  const verdict =
-    scan.overallVerdict ||
-    scan.verdict ||
-    assessment.status ||
-    ai.overallAssessment ||
-    'UNVERIFIED';
-
-  const verdictConfig = getStatus(verdict);
-  const VerdictIcon = verdictConfig.icon;
-
-  const ingredients = scan.ingredients || [];
-  const ingredientAnalysis = ai.ingredientAnalysis || [];
-  const productAnalysis = product.productAnalysis || scan.productAnalysis || {};
-  const nutrition = scan.nutrition || {};
-
-  const ingredientNames = new Set(
-    ingredientAnalysis.map((item) =>
-      String(item.ingredient || '').toLowerCase()
-    )
-  );
-
-  const productName = product.name || scan.productName || 'Unknown product';
-  const brand = product.brand || scan.brand || '';
-  const image = product.image || null;
-
-  const nutritionItems = [
-    { label: 'Energy', value: nutrition.energyKcal100g, unit: 'kcal', icon: Flame },
-    { label: 'Sugar', value: nutrition.sugars100g, unit: 'g', icon: Droplets },
-    { label: 'Carbohydrates', value: nutrition.carbohydrates100g, unit: 'g', icon: Wheat },
-    { label: 'Total Fat', value: nutrition.fat100g, unit: 'g', icon: Droplets },
-    { label: 'Saturated Fat', value: nutrition.saturatedFat100g, unit: 'g', icon: Droplets },
-    { label: 'Protein', value: nutrition.proteins100g, unit: 'g', icon: Beef },
-    { label: 'Salt', value: nutrition.salt100g, unit: 'g', icon: Droplets },
-    { label: 'Sodium', value: nutrition.sodium100g, unit: 'g', icon: Info },
-  ];
-
   return (
-    <div className="mx-auto max-w-5xl animate-fade-in pb-10">
+    <main className="mx-auto max-w-6xl animate-fade-in space-y-5 pb-10">
 
       {/* PAGE HEADER */}
-      <div className="mb-7">
+      <header>
+
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -452,319 +746,352 @@ export default function ScanResult() {
           Back
         </button>
 
-        <div className="mb-2 flex items-center gap-2">
-          <span className="h-px w-7 bg-[#247A50]" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#247A50]">
-            Your food report
-          </span>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#247A50]">
+              Your food report
+            </p>
+
+            <h1 className="text-2xl font-semibold tracking-tight text-[#153F2D] sm:text-3xl">
+              Product analysis
+            </h1>
+
+            <p className="mt-2 text-sm text-[#829187]">
+              A clear breakdown of ingredients, nutrition and profile compatibility.
+            </p>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSave}
+            loading={saving}
+            className="border border-[#DCE8DE] bg-white text-[#315A40]"
+          >
+            {saved ? (
+              <BookmarkCheck size={16} />
+            ) : (
+              <Bookmark size={16} />
+            )}
+
+            {saved ? 'Saved product' : 'Save product'}
+          </Button>
+
         </div>
+      </header>
 
-        <h1 className="text-2xl font-semibold tracking-tight text-[#153F2D] sm:text-3xl">
-          Product Analysis
-        </h1>
+      {/* PRODUCT CARD WITH LARGE VERDICT */}
+      <Panel className="overflow-hidden !p-0">
 
-        <p className="mt-2 text-sm text-[#829187]">
-          Personalized insights based on your food preferences and profile.
-        </p>
-      </div>
+        <VerdictBanner status={verdict} />
 
-      {/* PRODUCT VERDICT HERO */}
-      <section
-        className="relative mb-6 overflow-hidden rounded-2xl border p-5 sm:p-7"
-        style={{
-          background: verdictConfig.bg,
-          borderColor: verdictConfig.border,
-        }}
-      >
-        <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full border border-current opacity-[0.08]" />
-        <div className="pointer-events-none absolute -right-5 -top-16 h-44 w-44 rounded-full border border-current opacity-[0.08]" />
+        <div className="grid gap-0 md:grid-cols-[minmax(0,1fr)_300px]">
 
-        <div className="relative z-10">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} style={{ color: verdictConfig.color }} />
-              <span
-                className="text-[10px] font-semibold uppercase tracking-[0.18em]"
-                style={{ color: verdictConfig.color }}
-              >
-                Personalized assessment
-              </span>
-            </div>
+          {/* PRODUCT INFORMATION */}
+          <div className="p-5 sm:p-7">
 
-            <StatusBadge status={verdict} />
-          </div>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
 
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-            <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white bg-white/80 p-2 shadow-sm sm:h-32 sm:w-32">
-              {image ? (
-                <img
-                  src={image}
-                  alt={productName}
-                  className="h-full w-full object-contain"
-                />
-              ) : (
-                <Leaf size={42} className="text-[#6C9B79]" strokeWidth={1.3} />
-              )}
-            </div>
+              <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#E5ECE5] bg-[#FAFCFA] p-2 sm:h-36 sm:w-36">
 
-            <div className="min-w-0 flex-1">
-              {brand && (
-                <p className="mb-1 text-xs font-medium uppercase tracking-wider text-[#718477]">
-                  {brand}
-                </p>
-              )}
+                {image ? (
+                  <img
+                    src={image}
+                    alt={productName}
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <Leaf
+                    size={42}
+                    className="text-[#6C9B79]"
+                    strokeWidth={1.3}
+                  />
+                )}
 
-              <h2 className="text-2xl font-semibold leading-tight text-[#153F2D] sm:text-3xl">
-                {productName}
-              </h2>
-
-              <div className="mt-4 flex items-start gap-2">
-                <VerdictIcon
-                  size={19}
-                  className="mt-0.5 shrink-0"
-                  style={{ color: verdictConfig.color }}
-                />
-                <p
-                  className="text-sm leading-6"
-                  style={{ color: verdictConfig.color }}
-                >
-                  {verdictConfig.description}
-                </p>
               </div>
+
+              <div className="min-w-0">
+
+                {brand && (
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[#718477]">
+                    {brand}
+                  </p>
+                )}
+
+                <h2 className="text-2xl font-semibold leading-tight text-[#153F2D] sm:text-3xl">
+                  {productName}
+                </h2>
+
+                {scan.barcode && (
+                  <p className="mt-2 text-xs text-[#829187]">
+                    Barcode: {scan.barcode}
+                  </p>
+                )}
+
+                <div className="mt-4 flex items-start gap-2">
+
+                  <VerdictIcon
+                    size={18}
+                    className="mt-0.5 shrink-0"
+                    style={{ color: verdictConfig.color }}
+                  />
+
+                  <p className="text-sm leading-6 text-[#52705C]">
+                    {assessment.recommendation ||
+                      verdictConfig.description}
+                  </p>
+
+                </div>
+
+              </div>
+
             </div>
+
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-black/5 pt-5">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSave}
-              loading={saving}
-              className="border border-white/70 bg-white/60"
-            >
-              {saved ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
-              {saved ? 'Saved' : 'Save Product'}
-            </Button>
-          </div>
+          {/* QUICK TAKEAWAY */}
+          <aside className="flex flex-col justify-center border-t border-[#E7EEE7] bg-[#F7FAF7] p-5 sm:p-6 md:border-l md:border-t-0">
+
+            <div className="mb-3 flex items-center gap-2 text-[#315A40]">
+              <Sparkles size={17} />
+
+              <h3 className="text-sm font-semibold">
+                The quick takeaway
+              </h3>
+            </div>
+
+            <p className="text-sm leading-6 text-[#607568]">
+              {ai.summary ||
+                'Review the ingredient and nutrition details below to understand this product.'}
+            </p>
+
+          </aside>
+
         </div>
-      </section>
+      </Panel>
 
-      {/* AI SUMMARY */}
-      {ai.summary && (
-        <section className="mb-5 rounded-2xl border border-[#DCE9DE] bg-white p-5 shadow-[0_2px_12px_rgba(30,70,45,0.035)] sm:p-6">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EAF3EB] text-[#247A50]">
-              <Sparkles size={19} />
-            </div>
-            <div>
-              <h2 className="font-semibold text-[#153F2D]">
-                What does this mean for you?
-              </h2>
-              <p className="mt-1 text-xs text-[#829187]">
-                AI-powered personalized food insights
-              </p>
-            </div>
+      {/* RECOMMENDATION */}
+      {assessment.recommendation && (
+        <div className="flex items-start gap-3 rounded-2xl border border-[#D5E6D8] bg-[#EFF6F0] p-4 sm:p-5">
+
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#247A50]">
+            <ShieldCheck size={18} />
           </div>
 
-          <p className="text-sm leading-7 text-[#718477]">{ai.summary}</p>
+          <div>
+            <h2 className="text-sm font-semibold text-[#247A50]">
+              Your recommendation
+            </h2>
 
-          {assessment.recommendation && (
-            <div className="mt-5 rounded-xl border border-[#D5E6D8] bg-[#EFF6F0] p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-[#247A50]">
-                <ShieldCheck size={17} />
-                Your recommendation
-              </div>
-              <p className="mt-2 text-sm leading-6 text-[#52705C]">
-                {assessment.recommendation}
-              </p>
-            </div>
-          )}
-        </section>
+            <p className="mt-1 text-sm leading-6 text-[#52705C]">
+              {assessment.recommendation}
+            </p>
+          </div>
+
+        </div>
       )}
 
-      {/* PERSONALIZED ASSESSMENT */}
-      {Object.keys(assessment).length > 0 && (
-        <SectionCard
-          title="Your Personalized Assessment"
-          subtitle="How this product relates to your saved profile"
-          icon={HeartPulse}
-        >
-          <div className="space-y-3">
-            <AssessmentCard
+      {/* PERSONAL PROFILE COMPATIBILITY */}
+      {Object.keys(assessment).some((key) =>
+        key.endsWith('Assessment')
+      ) && (
+        <Panel>
+
+          <SectionHeading
+            eyebrow="Your profile"
+            title="Compatibility check"
+            description="See how the product matches your saved allergies, health conditions and diet."
+            icon={HeartPulse}
+          />
+
+          <div className="grid gap-3 md:grid-cols-3">
+
+            <AssessmentRow
               title="Allergy compatibility"
               icon={ShieldAlert}
               assessment={assessment.allergyAssessment}
             />
 
-            <AssessmentCard
+            <AssessmentRow
               title="Health conditions"
               icon={HeartPulse}
               assessment={assessment.conditionAssessment}
             />
 
-            <AssessmentCard
+            <AssessmentRow
               title="Diet compatibility"
               icon={Leaf}
               assessment={assessment.dietAssessment}
             />
+
           </div>
-        </SectionCard>
+
+        </Panel>
+      )}
+
+      {/* NUTRITION */}
+      {nutritionItems.length > 0 && (
+        <Panel>
+
+          <SectionHeading
+            eyebrow="Nutrition facts"
+            title="What is inside?"
+            description="Nutritional values per 100 g of product. Your actual intake depends on portion size."
+            icon={HeartPulse}
+          />
+
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-[#829187]">
+
+            <span className="rounded-full bg-[#FBF4E6] px-2.5 py-1 text-[#9A6B24]">
+              Highlighted values deserve attention
+            </span>
+
+            <span>All values are per 100 g</span>
+
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+
+            {nutritionItems.map((item) => (
+              <InsightTile key={item.label} {...item} />
+            ))}
+
+          </div>
+
+        </Panel>
       )}
 
       {/* INGREDIENT ANALYSIS */}
       {ingredientAnalysis.length > 0 && (
-        <SectionCard
-          title={`Ingredient Analysis (${ingredientAnalysis.length})`}
-          subtitle="Understand each ingredient and its relevance to your profile"
-          icon={Leaf}
-        >
-          <div className="mb-4 flex items-start gap-2 rounded-xl bg-[#EFF6F0] p-3.5">
-            <Info size={16} className="mt-0.5 shrink-0 text-[#39845A]" />
-            <p className="text-xs leading-5 text-[#718477]">
-              Select any ingredient to read its explanation and understand
-              possible profile-related concerns.
-            </p>
-          </div>
+        <Panel>
+
+          <SectionHeading
+            eyebrow="Ingredient breakdown"
+            title={`Ingredient analysis (${ingredientAnalysis.length})`}
+            description="Open an ingredient to read what it does and whether it raises a profile-related concern."
+            icon={Leaf}
+          />
 
           <div className="space-y-3">
+
             {ingredientAnalysis.map((item, index) => (
-              <IngredientCard
-                key={`${item.ingredient}-${index}`}
+              <IngredientRow
+                key={`${item.ingredient || 'ingredient'}-${index}`}
                 item={item}
               />
             ))}
+
           </div>
-        </SectionCard>
+
+        </Panel>
       )}
 
-      {/* NUTRITION */}
-      {nutritionItems.some(
-        (item) => item.value !== null && item.value !== undefined && item.value !== ''
-      ) && (
-        <SectionCard
-          title="Nutritional Information"
-          subtitle="Nutritional values per 100g of product"
-          icon={HeartPulse}
-        >
-          <div className="mb-4 rounded-xl bg-[#EFF6F0] px-4 py-3">
-            <p className="text-xs leading-5 text-[#718477]">
-              These values are per 100g, not per serving. Actual intake depends
-              on the quantity you consume.
-            </p>
-          </div>
+      {/* ALLERGENS AND PRODUCT TAGS */}
+      <Panel>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {nutritionItems.map((item) => (
-              <NutritionItem key={item.label} {...item} />
-            ))}
-          </div>
-        </SectionCard>
-      )}
+        <SectionHeading
+          eyebrow="Product label"
+          title="Allergens and product tags"
+          description="These are tags supplied by the product database; they are separate from the personalized compatibility result."
+          icon={Info}
+        />
 
-      {/* PRODUCT LABEL INFORMATION */}
-      <SectionCard
-        title="Product Label Information"
-        subtitle="Information declared on the product database listing"
-        icon={Info}
-      >
-        <div className="space-y-6">
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-[#315A40]">
-              Declared allergens
-            </h3>
-            <TagList
-              items={productAnalysis.allergens}
-              variant="red"
-              emptyText="No declared allergen tags available."
-            />
-          </div>
+        <div className="grid gap-6 md:grid-cols-2">
 
-          <div className="border-t border-[#E7EEE7] pt-5">
-            <h3 className="mb-3 text-sm font-semibold text-[#315A40]">
-              Ingredient analysis tags
-            </h3>
-            <TagList
-              items={productAnalysis.ingredientAnalysisTags}
-              variant="green"
-              emptyText="No ingredient analysis tags available."
-            />
-          </div>
+          <TagGroup
+            title="Declared allergens"
+            items={productAnalysis.allergens}
+            variant="red"
+            emptyText="No declared allergen tags available."
+          />
 
-          <div className="border-t border-[#E7EEE7] pt-5">
-            <h3 className="mb-3 text-sm font-semibold text-[#315A40]">
-              Additives
-            </h3>
-            <TagList
-              items={productAnalysis.additives}
-              variant="neutral"
-              emptyText="No additive tags available."
-            />
-          </div>
+          <TagGroup
+            title="Ingredient tags"
+            items={productAnalysis.ingredientAnalysisTags}
+            variant="green"
+            emptyText="No ingredient analysis tags available."
+          />
+
         </div>
-      </SectionCard>
+
+        <div className="mt-6 border-t border-[#E7EEE7] pt-5">
+
+          <TagGroup
+            title="Additives"
+            items={productAnalysis.additives}
+            variant="neutral"
+            emptyText="No additive tags listed."
+          />
+
+        </div>
+
+      </Panel>
 
       {/* COMPLETE INGREDIENT LIST */}
       {ingredients.length > 0 && (
-        <SectionCard
-          title="Complete Ingredient List"
-          subtitle={`${ingredients.length} ingredients found in the product`}
-          icon={Leaf}
-        >
-          <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-[#829187]">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#247A50]" />
-              AI analyzed
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#C7D2C9]" />
-              Listed ingredient
-            </span>
-          </div>
+        <Panel>
+
+          <SectionHeading
+            eyebrow="Full label"
+            title={`Complete ingredient list (${ingredients.length})`}
+            description="Ingredients shown in the product database listing. Green indicates an ingredient with an AI explanation above."
+            icon={Leaf}
+          />
 
           <div className="flex flex-wrap gap-2">
+
             {ingredients.map((ingredient, index) => {
-              const analyzed = ingredientNames.has(
+              const isAnalyzed = analyzedIngredients.has(
                 String(ingredient).toLowerCase()
               );
 
               return (
                 <span
                   key={`${ingredient}-${index}`}
-                  className={`rounded-lg border px-3 py-2 text-xs font-medium ${
-                    analyzed
+                  className={cx(
+                    'rounded-lg border px-3 py-2 text-xs font-medium capitalize',
+                    isAnalyzed
                       ? 'border-[#CDE2D1] bg-[#EFF6F0] text-[#247A50]'
                       : 'border-[#E1E9E2] bg-[#F6F8F6] text-[#687B70]'
-                  }`}
+                  )}
                 >
                   {ingredient}
                 </span>
               );
             })}
+
           </div>
-        </SectionCard>
+
+        </Panel>
       )}
-
-
 
       {/* DISCLAIMER */}
       <div className="flex items-start gap-3 rounded-2xl border border-[#DFE9E0] bg-[#F3F7F3] p-4 sm:p-5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-[#39845A]">
+
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#39845A]">
           <ShieldCheck size={17} />
         </div>
 
         <div>
+
           <h3 className="text-xs font-semibold text-[#315A40]">
             Important information
           </h3>
+
           <p className="mt-1 text-xs leading-6 text-[#829187]">
             FoodLens provides AI-assisted assessments based on available
-            product label, ingredient and nutrition information. Product data
-            may be incomplete or inaccurate. This result does not certify
-            FSSAI compliance and is not medical advice. Consult a qualified
+            product label, ingredient and nutrition information.
+            Product data may be incomplete or inaccurate. This result
+            does not certify FSSAI compliance and is not medical advice.
+            Check the physical packaging and consult a qualified
             healthcare professional for medical dietary decisions.
           </p>
+
         </div>
+
       </div>
-    </div>
+
+    </main>
   );
 }

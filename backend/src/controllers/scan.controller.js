@@ -12,6 +12,11 @@ import {
 import fs from "fs";
 
 // Allowed verdicts
+
+
+// Get verdict from Groq response
+
+// Allowed verdicts
 const VALID_VERDICTS = [
   "AVOID",
   "CAUTION",
@@ -23,12 +28,16 @@ const VALID_VERDICTS = [
 const getAIVerdict = (aiAnalysis) => {
   const verdict =
     aiAnalysis?.personalizedAssessment?.status ||
-    aiAnalysis?.overallAssessment;
+    aiAnalysis?.overallAssessment ||
+    "UNVERIFIED";
 
-  return VALID_VERDICTS.includes(verdict)
-    ? verdict
+  const normalizedVerdict = String(verdict).trim().toUpperCase();
+
+  return VALID_VERDICTS.includes(normalizedVerdict)
+    ? normalizedVerdict
     : "UNVERIFIED";
 };
+
 
 // Validate user health profile
 const getHealthProfile = (req, res) => {
