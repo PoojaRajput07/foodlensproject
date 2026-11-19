@@ -24,9 +24,14 @@ const app = express();
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
 // CORS
+
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: [
+      "http://localhost:5173",
+      process.env.FRONTEND_URL,
+    ],
     credentials: true,
   })
 );
