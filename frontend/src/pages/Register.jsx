@@ -1,7 +1,6 @@
-
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Leaf, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Leaf, ArrowRight, ShieldCheck, BrainCircuit, ScanLine } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Input } from '../components/common/Input.jsx';
@@ -33,6 +32,65 @@ function validate(form) {
   }
 
   return errors;
+}
+
+function BrandingPanel() {
+  const highlights = [
+    { icon: ScanLine, title: 'Scan any product', description: 'Barcode or ingredient list — instant results.' },
+    { icon: BrainCircuit, title: 'AI-driven analysis', description: 'Tailored to your allergies and dietary profile.' },
+    { icon: ShieldCheck, title: 'Privacy first', description: 'Your health data stays yours, always.' },
+  ];
+  return (
+    <div className="hidden lg:flex lg:w-5/12 xl:w-1/2 relative overflow-hidden ls-brand-gradient flex-col justify-between p-12">
+      <div className="absolute inset-0 opacity-[0.07] pointer-events-none">
+        {[...Array(7)].map((_, i) => (
+          <div key={i} className="absolute rounded-full border border-white"
+            style={{ width: `${140 + i * 75}px`, height: `${140 + i * 75}px`, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
+        ))}
+      </div>
+      <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-white/10 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 -left-24 w-96 h-96 rounded-full bg-black/10 blur-3xl pointer-events-none" />
+
+      <Link to="/" className="relative flex items-center gap-3 text-white">
+        <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center">
+          <Leaf size={22} />
+        </div>
+        <div>
+          <span className="font-bold text-2xl tracking-tight block" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>FoodLens</span>
+          <span className="text-white/60 text-xs tracking-wider">FOOD LABEL INTELLIGENCE</span>
+        </div>
+      </Link>
+
+      <div className="relative max-w-lg">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-white/10 text-white/90 text-xs font-medium mb-7">
+          <Leaf size={14} />
+          A more mindful way to eat
+        </div>
+        <h2 className="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>
+          Know what goes into your{' '}
+          <span className="text-white/60 italic font-normal">everyday food.</span>
+        </h2>
+        <p className="text-white/70 text-base leading-relaxed mb-10 max-w-md">
+          Make informed food choices with personalized ingredient insights based on your dietary preferences, allergies and health profile.
+        </p>
+        <div className="flex flex-col gap-6">
+          {highlights.map(({ icon: Icon, title, description }) => (
+            <div key={title} className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/15 flex items-center justify-center flex-shrink-0">
+                <Icon size={19} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-semibold text-sm mb-1">{title}</h3>
+                <p className="text-white/60 text-xs leading-relaxed">{description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <p className="relative text-white/40 text-xs">© {new Date().getFullYear()} FoodLens. Informational purposes only.</p>
+    </div>
+  );
 }
 
 export default function Register() {
@@ -96,111 +154,38 @@ export default function Register() {
   };
 
   return (
-    <div
-      className="min-h-screen flex"
-      style={{ background: 'var(--ls-page)' }}
-    >
-      {/* LEFT BRAND PANEL */}
-      <aside className="hidden lg:flex lg:w-[40%] xl:w-[42%] shrink-0 relative overflow-hidden flex-col justify-between p-12 xl:p-16 bg-[#173F32]">
+    <div className="min-h-screen flex" style={{ background: 'var(--ls-bg)' }}>
+      <BrandingPanel />
 
-        {/* Decorative circles */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-40 -right-32 w-[500px] h-[500px] rounded-full border border-white/10" />
-
-          <div className="absolute -top-24 -right-16 w-[380px] h-[380px] rounded-full border border-white/10" />
-
-          <div className="absolute top-1/2 -right-40 w-[550px] h-[550px] rounded-full border border-[#C9B78B]/20 -translate-y-1/2" />
-
-          <div className="absolute -bottom-48 -left-32 w-[500px] h-[500px] rounded-full border border-white/10" />
-
-          <div className="absolute inset-0 bg-gradient-to-br from-[#244F40]/30 via-transparent to-[#0D2B22]/70" />
-        </div>
-
-        {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3 text-[#F8F5EC]">
-          <div className="w-11 h-11 rounded-2xl border border-[#C9B78B]/40 bg-white/5 flex items-center justify-center">
-            <Leaf size={21} className="text-[#D6C69D]" />
-          </div>
-
-          <span className="text-2xl tracking-tight font-semibold">
-            FoodLens
-          </span>
-        </div>
-
-        {/* Brand content */}
-        <div className="relative z-10 max-w-lg">
-          <span className="text-[11px] tracking-[0.3em] uppercase text-[#D6C69D] font-medium">
-            A more mindful way to eat
-          </span>
-
-          <h2 className="mt-6 text-4xl xl:text-5xl leading-[1.15] font-semibold text-[#F8F5EC]">
-            Know what
-            <br />
-            goes into your
-            <br />
-            <span className="text-[#D6C69D] italic font-normal">
-              everyday food.
-            </span>
-          </h2>
-
-          <p className="mt-7 max-w-sm text-sm leading-7 text-[#E6E9E2]/70">
-            Make informed food choices with personalized ingredient insights
-            based on your dietary preferences, allergies and health profile.
-          </p>
-
-          <div className="mt-10 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full border border-[#D6C69D]/40 flex items-center justify-center">
-              <ShieldCheck size={16} className="text-[#D6C69D]" />
-            </div>
-
-            <span className="text-xs tracking-wide text-white/60">
-              Your food choices, understood better.
-            </span>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <p className="relative z-10 text-[11px] tracking-wide text-white/40">
-          © 2026 FoodLens. Informational purposes only.
-        </p>
-      </aside>
-
-      {/* RIGHT REGISTRATION PANEL */}
       <main
-        className="flex-1 flex items-center justify-center px-6 py-12 sm:px-10"
+        className="flex-1 flex items-center justify-center px-5 py-10 sm:px-8"
         style={{ background: 'var(--ls-page)' }}
       >
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-md">
 
           {/* Mobile logo */}
-          <div
-            className="flex items-center gap-3 mb-12 lg:hidden"
+          <Link
+            to="/"
+            className="flex items-center gap-2 mb-10 lg:hidden"
             style={{ color: 'var(--ls-green)' }}
           >
-            <div className="w-10 h-10 rounded-xl bg-[#173F32] flex items-center justify-center">
-              <Leaf size={19} className="text-[#D6C69D]" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center ls-brand-gradient">
+              <Leaf size={18} className="text-white" />
             </div>
-
-            <span className="text-xl font-semibold tracking-tight">
-              FoodLens
-            </span>
-          </div>
+            <span className="font-bold text-xl" style={{ fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>FoodLens</span>
+          </Link>
 
           {/* Heading */}
           <div className="mb-9">
-            <span className="text-[11px] uppercase tracking-[0.22em] font-semibold text-[#A28C5B]">
-              Get started
-            </span>
-
+            <p className="text-xs font-bold uppercase tracking-[0.2em] mb-3" style={{ color: 'var(--ls-green)' }}>Get started</p>
             <h1
-              className="mt-3 text-[32px] leading-tight font-semibold tracking-tight"
-              style={{ color: 'var(--ls-text)' }}
+              className="text-3xl sm:text-4xl font-bold tracking-tight mb-3"
+              style={{ color: 'var(--ls-heading)', fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}
             >
               Create your account
             </h1>
-
             <p
-              className="mt-3 text-sm leading-6"
+              className="text-sm leading-relaxed"
               style={{ color: 'var(--ls-muted)' }}
             >
               A little about you. A better understanding of your food.
@@ -279,21 +264,17 @@ export default function Register() {
 
           {/* Terms */}
           <p
-            className="mt-6 text-[11px] leading-5 text-center"
+            className="mt-6 text-xs leading-relaxed text-center"
             style={{ color: 'var(--ls-muted)' }}
           >
-            By creating an account, you agree to our Terms of Service.
+            By creating an account, you agree to use FoodLens as an informational tool. It does not replace professional medical advice.
           </p>
 
           {/* Divider */}
-          <div className="my-7 flex items-center gap-4">
-            <div className="flex-1 h-px bg-[#DEDCCF]" />
-
-            <span className="text-[10px] uppercase tracking-[0.18em] text-[#9A9A8D]">
-              Already a member?
-            </span>
-
-            <div className="flex-1 h-px bg-[#DEDCCF]" />
+          <div className="flex items-center gap-4 my-7">
+            <div className="flex-1 h-px" style={{ background: 'var(--ls-border)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--ls-muted)' }}>Already a member?</span>
+            <div className="flex-1 h-px" style={{ background: 'var(--ls-border)' }} />
           </div>
 
           {/* Login link */}
@@ -302,7 +283,6 @@ export default function Register() {
             style={{ color: 'var(--ls-muted)' }}
           >
             Have an account?{' '}
-
             <Link
               to="/login"
               className="font-semibold hover:underline underline-offset-4"
@@ -313,7 +293,7 @@ export default function Register() {
           </p>
 
           {/* Privacy note */}
-          <div className="mt-10 flex justify-center items-center gap-2 text-[10px] tracking-wide text-[#9A9A8D]">
+          <div className="mt-8 flex justify-center items-center gap-2 text-xs" style={{ color: 'var(--ls-muted)' }}>
             <ShieldCheck size={13} />
             Your account details are kept private.
           </div>

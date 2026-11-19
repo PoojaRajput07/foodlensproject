@@ -53,4 +53,23 @@ export const authService = {
     const { data } = await api.get('/auth/me');
     return data.user;
   },
+
+  async forgotPassword({ email }) {
+    if (USE_MOCK) {
+      await delay(800);
+      return { message: 'If that email is registered, a reset link has been sent.' };
+    }
+    const { data } = await api.post('/auth/forgot-password', { email });
+    return data;
+  },
+
+  async resetPassword({ token, password }) {
+    if (USE_MOCK) {
+      await delay(800);
+      return { message: 'Password reset successfully. You can now log in.' };
+    }
+    const { data } = await api.post('/auth/reset-password', { token, password });
+    return data;
+  },
 };
+

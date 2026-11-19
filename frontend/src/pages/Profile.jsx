@@ -3,14 +3,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   User,
-  Calendar,
   Edit,
   Check,
   X,
-  Bell,
-  Shield,
-  Globe,
-  Trash2,
   LogOut,
   Info,
   ChevronRight,
@@ -18,17 +13,18 @@ import {
   HeartPulse,
   Activity,
   Utensils,
-  Settings,
   Mail,
-  AlertCircle,
+  Shield,
+  Scan,
+  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext.jsx';
 import { userService } from '../services/userService.js';
 import { Button } from '../components/common/Button.jsx';
-import { Input } from '../components/common/Input.jsx';
+
 import { InlineLoader } from '../components/common/Spinner.jsx';
-import { Modal } from '../components/common/Modal.jsx';
+
 
 const ALLERGIES = [
   'Milk',
@@ -219,21 +215,16 @@ function ProfileSection({ children, className = '' }) {
 }
 
 export default function Profile() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleteModal, setDeleteModal] = useState(false);
-  const [language, setLanguage] = useState('English');
-  const [notifications, setNotifications] = useState(true);
+
 
   const [form, setForm] = useState({
-    name: '',
-    age: '',
-    gender: '',
     allergies: [],
     healthConditions: [],
     dietPreference: '',
@@ -249,9 +240,6 @@ export default function Profile() {
 
         setProfile(p);
         setForm({
-          name: p.name || '',
-          age: p.age?.toString() || '',
-          gender: p.gender || '',
           allergies: p.allergies || [],
           healthConditions: p.healthConditions || [],
           dietPreference: p.dietPreference || '',
@@ -280,9 +268,6 @@ export default function Profile() {
 
   const resetForm = () => {
     setForm({
-      name: profile?.name || '',
-      age: profile?.age?.toString() || '',
-      gender: profile?.gender || '',
       allergies: profile?.allergies || [],
       healthConditions: profile?.healthConditions || [],
       dietPreference: profile?.dietPreference || '',
@@ -295,36 +280,17 @@ export default function Profile() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) {
-      toast.error('Name is required.');
-      return;
-    }
-
-    if (form.age && (Number(form.age) < 1 || Number(form.age) > 120)) {
-      toast.error('Please enter a valid age.');
-      return;
-    }
-
     setSaving(true);
 
     try {
-      const updated = await userService.updateProfile({
-        ...form,
-        name: form.name.trim(),
-        age: form.age ? Number(form.age) : undefined,
-      });
+      const updated = await userService.updateProfile(form);
 
       setProfile(updated);
       setForm({
-        name: updated.name || '',
-        age: updated.age?.toString() || '',
-        gender: updated.gender || '',
         allergies: updated.allergies || [],
         healthConditions: updated.healthConditions || [],
         dietPreference: updated.dietPreference || '',
       });
-
-      updateUser({ name: updated.name });
 
       toast.success('Profile updated successfully!');
       setEditMode(false);
@@ -348,7 +314,9 @@ export default function Profile() {
     return <InlineLoader message="Loading your profile..." />;
   }
 
-  const displayName = profile?.name || user?.name || 'User';
+  // Name & email come from AuthContext (auth/me), not from the profile endpoint
+  const displayName = user?.name || profile?.name || 'User';
+  const displayEmail = user?.email || profile?.email || '';
   const initials = displayName
     .split(' ')
     .filter(Boolean)
@@ -428,7 +396,7 @@ export default function Profile() {
               style={{ color: 'var(--ls-muted)' }}
             >
               <Mail size={14} />
-              {profile?.email || user?.email || 'No email available'}
+              {displayEmail || 'No email available'}
             </p>
 
             <p
@@ -488,32 +456,6 @@ export default function Profile() {
           </div>
 
           <div className="flex flex-col gap-5">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input
-                id="profile-name"
-                name="name"
-                label="Full name"
-                placeholder="Enter your name"
-                value={form.name}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, name: e.target.value }))
-                }
-              />
-
-              <Input
-                id="profile-age"
-                name="age"
-                label="Age"
-                type="number"
-                placeholder="Enter your age"
-                value={form.age}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, age: e.target.value }))
-                }
-                min={1}
-                max={120}
-              />
-            </div>
 
             <div>
               <label
@@ -664,25 +606,13 @@ export default function Profile() {
               <ProfileInfo
                 icon={User}
                 label="Full name"
-                value={profile.name}
-              />
-
-              <ProfileInfo
-                icon={Calendar}
-                label="Age"
-                value={profile.age ? `${profile.age} years` : 'Not set'}
-              />
-
-              <ProfileInfo
-                icon={Activity}
-                label="Gender"
-                value={profile.gender}
+                value={displayName}
               />
 
               <ProfileInfo
                 icon={Mail}
                 label="Email address"
-                value={profile.email}
+                value={displayEmail}
               />
             </div>
           </ProfileSection>
@@ -820,137 +750,141 @@ export default function Profile() {
         </>
       )}
 
-      {/* Account settings */}
+      {/* About FoodLens */}
       <div className="mb-6">
         <div className="mb-4">
           <p
             className="text-xs font-semibold uppercase tracking-[0.16em]"
             style={{ color: 'var(--ls-muted)' }}
           >
-            Preferences
+            Application
           </p>
           <h2
             className="text-lg font-bold mt-1"
             style={{ color: 'var(--ls-text)' }}
           >
-            Account Settings
-          </h2>
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <SettingRow
-            icon={Globe}
-            label="Language"
-            description="Choose your preferred language"
-            id="setting-language"
-            onClick={() => {
-              setLanguage((current) =>
-                current === 'English' ? 'Hindi' : 'English'
-              );
-              toast(
-                `Language preference changed. Full translation is not available yet.`
-              );
-            }}
-            right={
-              <span
-                className="text-sm font-semibold"
-                style={{ color: 'var(--ls-green)' }}
-              >
-                {language}
-              </span>
-            }
-          />
-
-          <SettingRow
-            icon={Bell}
-            label="Notifications"
-            description={
-              notifications ? 'Currently enabled' : 'Currently disabled'
-            }
-            id="setting-notifications"
-            onClick={() => {
-              setNotifications((current) => !current);
-              toast(
-                notifications
-                  ? 'Notifications disabled'
-                  : 'Notifications enabled'
-              );
-            }}
-            right={
-              <div
-                className={`w-11 h-6 rounded-full flex items-center transition-all ${
-                  notifications ? 'justify-end' : 'justify-start'
-                }`}
-                style={{
-                  background: notifications
-                    ? 'var(--ls-green)'
-                    : 'var(--ls-border)',
-                  padding: '3px',
-                }}
-              >
-                <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-              </div>
-            }
-          />
-
-          <SettingRow
-            icon={Shield}
-            label="Privacy Policy"
-            description="Learn how your information is handled"
-            id="setting-privacy"
-            onClick={() => toast('Privacy policy coming soon')}
-          />
-
-          <SettingRow
-            icon={Info}
-            label="About FoodLens"
-            description="Version 1.0.0 · Final Year Project"
-            id="setting-about"
-            onClick={() => toast('FoodLens — AI-powered food label analysis')}
-          />
-        </div>
-      </div>
-
-      {/* Danger zone */}
-      <div className="mb-6">
-        <div className="mb-4">
-          <p
-            className="text-xs font-semibold uppercase tracking-[0.16em]"
-            style={{ color: 'var(--ls-red)' }}
-          >
-            Account management
-          </p>
-          <h2
-            className="text-lg font-bold mt-1"
-            style={{ color: 'var(--ls-text)' }}
-          >
-            Danger Zone
+            About FoodLens
           </h2>
         </div>
 
         <div
-          className="rounded-2xl p-4 sm:p-5"
+          className="rounded-2xl p-5 sm:p-6"
           style={{
-            border: '1px solid var(--ls-red-light)',
             background: 'var(--ls-surface)',
+            border: '1px solid var(--ls-border)',
+            boxShadow: 'var(--shadow-card)',
           }}
         >
-          <SettingRow
-            icon={Trash2}
-            label="Delete All Data"
-            description="Permanently remove your scan history and saved data"
-            id="setting-delete-data"
-            danger
-            onClick={() => setDeleteModal(true)}
-            right={
-              <ChevronRight
-                size={17}
-                style={{ color: 'var(--ls-red)' }}
-              />
-            }
+          {/* App identity */}
+          <div className="flex items-center gap-4 mb-5">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center ls-brand-gradient flex-shrink-0"
+            >
+              <Leaf size={26} className="text-white" />
+            </div>
+            <div>
+              <h3
+                className="text-lg font-bold tracking-tight"
+                style={{ color: 'var(--ls-text)' }}
+              >
+                FoodLens
+              </h3>
+              <p
+                className="text-xs mt-0.5"
+                style={{ color: 'var(--ls-muted)' }}
+              >
+                Version 1.0.0 &nbsp;·&nbsp; Final Year Project
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="h-px mb-5"
+            style={{ background: 'var(--ls-border)' }}
           />
+
+          <p
+            className="text-sm leading-7 mb-5"
+            style={{ color: 'var(--ls-muted)' }}
+          >
+            FoodLens is an AI-powered food label analysis application designed
+            to help you make smarter, healthier food choices. Simply scan a
+            product barcode or search by name and get instant, personalized
+            ingredient insights tailored to your allergies, health conditions,
+            and dietary preferences.
+          </p>
+
+          {/* Feature highlights */}
+          <div className="grid sm:grid-cols-3 gap-3">
+            {[
+              {
+                icon: Scan,
+                title: 'Barcode Scanning',
+                desc: 'Instant product lookup using your camera',
+              },
+              {
+                icon: Sparkles,
+                title: 'AI Analysis',
+                desc: 'Personalized ingredient insights powered by AI',
+              },
+              {
+                icon: Shield,
+                title: 'Health Profile',
+                desc: 'Tailored for your allergies & health conditions',
+              },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div
+                key={title}
+                className="rounded-xl p-3.5"
+                style={{ background: 'var(--ls-bg)' }}
+              >
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center mb-2.5"
+                  style={{
+                    background: 'var(--ls-green-light)',
+                    color: 'var(--ls-green)',
+                  }}
+                >
+                  <Icon size={17} />
+                </div>
+                <p
+                  className="text-xs font-semibold mb-1"
+                  style={{ color: 'var(--ls-text)' }}
+                >
+                  {title}
+                </p>
+                <p
+                  className="text-[11px] leading-relaxed"
+                  style={{ color: 'var(--ls-muted)' }}
+                >
+                  {desc}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div
+            className="mt-5 p-3.5 rounded-xl flex items-start gap-3"
+            style={{ background: 'var(--ls-green-light)' }}
+          >
+            <Info
+              size={15}
+              className="flex-shrink-0 mt-0.5"
+              style={{ color: 'var(--ls-green)' }}
+            />
+            <p
+              className="text-xs leading-relaxed"
+              style={{ color: 'var(--ls-text)' }}
+            >
+              FoodLens assessments are AI-assisted and based on product label
+              data. Results are not medical advice. Always consult a healthcare
+              professional for dietary decisions.
+            </p>
+          </div>
         </div>
       </div>
+
+
 
       {/* Sign out */}
       <Button
@@ -974,61 +908,7 @@ export default function Profile() {
         </p>
       </div>
 
-      {/* Delete confirmation */}
-      <Modal
-        open={deleteModal}
-        onClose={() => setDeleteModal(false)}
-        title="Delete all data?"
-      >
-        <div className="flex flex-col gap-5">
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center"
-            style={{
-              background: 'var(--ls-red-light)',
-              color: 'var(--ls-red)',
-            }}
-          >
-            <AlertCircle size={24} />
-          </div>
 
-          <p
-            className="text-sm leading-relaxed"
-            style={{ color: 'var(--ls-muted)' }}
-          >
-            This will permanently delete your scan history, health profile
-            and all saved data. This action{' '}
-            <strong style={{ color: 'var(--ls-text)' }}>
-              cannot be undone.
-            </strong>
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              variant="ghost"
-              fullWidth
-              onClick={() => setDeleteModal(false)}
-              id="delete-cancel-btn"
-            >
-              Cancel
-            </Button>
-
-            <Button
-              variant="danger"
-              fullWidth
-              onClick={() => {
-                setDeleteModal(false);
-                toast.error(
-                  'Data deletion is not connected to the backend yet.'
-                );
-              }}
-              id="delete-confirm-btn"
-            >
-              <Trash2 size={16} />
-              Delete Everything
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }

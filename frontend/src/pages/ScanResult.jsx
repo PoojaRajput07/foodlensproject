@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   Bookmark,
   BookmarkCheck,
-  Flag,
   XCircle,
   AlertTriangle,
   CheckCircle,
@@ -317,7 +316,7 @@ export default function ScanResult() {
   const [loading, setLoading] = useState(!state?.result);
   const [saved, setSaved] = useState(state?.result?.isSaved || false);
   const [saving, setSaving] = useState(false);
-  const [reporting, setReporting] = useState(false);
+
 
   useEffect(() => {
     if (state?.result) {
@@ -370,20 +369,7 @@ export default function ScanResult() {
     }
   };
 
-  const handleReport = async () => {
-    if (reporting) return;
 
-    setReporting(true);
-
-    try {
-      await scanService.reportScan(id, 'incorrect_verdict', '');
-      toast.success('Report submitted. Thank you!');
-    } catch {
-      toast.error('Could not submit report. Please try again.');
-    } finally {
-      setReporting(false);
-    }
-  };
 
   if (loading) {
     return <InlineLoader message="Loading result..." />;
@@ -758,28 +744,7 @@ export default function ScanResult() {
         </SectionCard>
       )}
 
-      {/* ACTIONS */}
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#DFE9E0] bg-white p-4 sm:p-5">
-        <div>
-          <h3 className="text-sm font-semibold text-[#254B35]">
-            Help us improve
-          </h3>
-          <p className="mt-1 text-xs text-[#829187]">
-            Found something incorrect in this result?
-          </p>
-        </div>
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleReport}
-          loading={reporting}
-          className="border border-[#E1EAE2]"
-        >
-          <Flag size={15} />
-          Report Result
-        </Button>
-      </div>
 
       {/* DISCLAIMER */}
       <div className="flex items-start gap-3 rounded-2xl border border-[#DFE9E0] bg-[#F3F7F3] p-4 sm:p-5">

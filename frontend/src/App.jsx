@@ -8,13 +8,13 @@ import { DashboardLayout } from './components/layout/DashboardLayout.jsx';
 import Landing from './pages/Landing.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import Setup from './pages/Setup.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Scan from './pages/Scan.jsx';
 import ScanResult from './pages/ScanResult.jsx';
 import History from './pages/History.jsx';
-import IngredientLibrary from './pages/IngredientLibrary.jsx';
-import IngredientDetails from './pages/IngredientDetails.jsx';
 import Profile from './pages/Profile.jsx';
 
 export default function App() {
@@ -27,6 +27,8 @@ export default function App() {
       <Route element={<PublicRoute />}>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Route>
 
       {/* Setup — protected but outside dashboard layout */}
@@ -41,8 +43,6 @@ export default function App() {
           <Route path="/scan" element={<Scan />} />
           <Route path="/result/:id" element={<ScanResult />} />
           <Route path="/history" element={<History />} />
-          <Route path="/library" element={<IngredientLibrary />} />
-          <Route path="/library/:id" element={<IngredientDetails />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
       </Route>

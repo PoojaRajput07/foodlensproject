@@ -316,6 +316,7 @@ function CameraTab({ onResult }) {
 // MANUAL BARCODE ENTRY
 // --------------------------------------------------
 
+
 function ManualTab({ onResult }) {
   const [barcode, setBarcode] = useState('');
   const [error, setError] = useState('');
@@ -335,8 +336,9 @@ function ManualTab({ onResult }) {
     setLoading(true);
 
     try {
-      const result = await scanService.scanBarcode(value);
-      onResult(result);
+      // Pass the barcode string to the parent.
+      // The parent handles the API request and navigation.
+      await onResult(value);
     } catch (err) {
       toast.error(err.message || 'Product not found.');
     } finally {
@@ -371,7 +373,9 @@ function ManualTab({ onResult }) {
           placeholder="e.g. 8901030860140"
           value={barcode}
           onChange={(event) => {
-            setBarcode(event.target.value.replace(/\D/g, '').slice(0, 14));
+            setBarcode(
+              event.target.value.replace(/\D/g, '').slice(0, 14)
+            );
             setError('');
           }}
           error={error}
@@ -391,6 +395,7 @@ function ManualTab({ onResult }) {
     </div>
   );
 }
+
 
 // --------------------------------------------------
 // BARCODE IMAGE UPLOAD
@@ -773,195 +778,70 @@ export default function Scan() {
     [navigate]
   );
 
-  const activeOption = SCAN_OPTIONS.find(
-    (option) => option.id === activeTab
-  );
-
   return (
-    <div className="mx-auto max-w-5xl animate-fade-in pb-10">
-
-      {/* PAGE HEADER */}
+    <div className="mx-auto max-w-4xl animate-fade-in pb-10">
+      {/* Page header */}
       <div className="mb-8">
         <div className="mb-3 flex items-center gap-2">
-          <span className="h-px w-7 bg-[#247A50]" />
-          <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#247A50]">
-            Food intelligence
-          </span>
+          <span className="h-px w-6" style={{ background: 'var(--ls-green)' }} />
+          <span className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--ls-green)' }}>Food intelligence</span>
         </div>
-
-        <h1 className="text-3xl font-semibold tracking-tight text-[#153F2D] sm:text-4xl">
-          Scan a Product
-        </h1>
-
-        <p className="mt-3 max-w-xl text-sm leading-6 text-[#788A7D]">
-          Discover what goes into your food. Choose a scanning method to get
-          personalized insights based on your profile.
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" style={{ color: 'var(--ls-heading)', fontFamily: 'Plus Jakarta Sans, Inter, sans-serif' }}>Scan a Product</h1>
+        <p className="mt-3 max-w-xl text-sm leading-6" style={{ color: 'var(--ls-muted)' }}>
+          Discover what goes into your food. Choose a scanning method to get personalized insights based on your profile.
         </p>
       </div>
 
-      {/* INTRO BANNER */}
-      <div className="relative mb-8 overflow-hidden rounded-2xl border border-[#D8E8DC] bg-[#EFF6F0] p-6 sm:p-8">
-        <div className="pointer-events-none absolute -right-12 -top-24 h-64 w-64 rounded-full border border-[#BFD9C5]/50" />
-        <div className="pointer-events-none absolute -right-3 -top-16 h-44 w-44 rounded-full border border-[#BFD9C5]/50" />
+      {/* Tab selector */}
+      <div className="mb-6 grid grid-cols-2 gap-2 sm:flex sm:gap-2">
+        {SCAN_OPTIONS.map((option) => {
+          const Icon = option.icon;
+          const isActive = activeTab === option.id;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setActiveTab(option.id)}
+              className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-150 border sm:flex-1"
+              style={{
+                background: isActive ? 'var(--ls-green)' : 'var(--ls-surface)',
+                color: isActive ? '#FFFFFF' : 'var(--ls-muted)',
+                borderColor: isActive ? 'var(--ls-green)' : 'var(--ls-border)',
+                boxShadow: isActive ? '0 2px 8px rgba(34,113,74,0.20)' : 'none',
+              }}
+            >
+              <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />
+              <span className="hidden xs:inline sm:inline">{option.title}</span>
+            </button>
+          );
+        })}
+      </div>
 
-        <div className="relative z-10 flex items-center justify-between gap-5">
-          <div className="max-w-xl">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#CFE2D3] bg-white/70 px-3 py-1.5">
-              <Leaf size={13} className="text-[#247A50]" />
-              <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#247A50]">
-                Your personal food companion
-              </span>
-            </div>
+      {/* Tab content card */}
+      {scanning && (
+        <div className="mb-4 flex items-center justify-center gap-3 rounded-xl px-4 py-4 text-sm border"
+          style={{ background: 'var(--ls-green-light)', color: 'var(--ls-green)', borderColor: 'var(--ls-border)' }}>
+          <Loader2 size={19} className="animate-spin shrink-0" />
+          Looking up product details…
+        </div>
+      )}
 
-            <h2 className="text-xl font-semibold text-[#153F2D] sm:text-2xl">
-              Make every food choice count.
-            </h2>
-
-            <p className="mt-2 max-w-md text-sm leading-6 text-[#788A7D]">
-              Get ingredient and nutrition insights tailored to your dietary
-              preferences, allergies and health profile.
-            </p>
-          </div>
-
-          <div className="hidden h-24 w-24 shrink-0 items-center justify-center rounded-full border border-white bg-white/70 text-[#39845A] shadow-sm sm:flex">
-            <ScanLine size={39} strokeWidth={1.4} />
-          </div>
+      <div className="rounded-2xl border p-6 sm:p-8 min-h-[380px] flex items-start justify-center"
+        style={{ background: 'var(--ls-surface)', borderColor: 'var(--ls-border)', boxShadow: 'var(--shadow-card)' }}>
+        <div className="w-full">
+          {activeTab === 'camera' && <CameraTab onResult={handleBarcodeResult} />}
+          {activeTab === 'manual' && <ManualTab onResult={handleBarcodeResult} />}
+          {activeTab === 'barcode-image' && <BarcodeImageTab onResult={handleResultReady} />}
+          {activeTab === 'ingredient-image' && <IngredientImageTab onResult={handleResultReady} />}
         </div>
       </div>
 
-      {/* SCANNING METHODS */}
-      <div className="mb-7">
-        <div className="mb-4">
-          <h2 className="text-base font-semibold text-[#153F2D]">
-            Choose scanning method
-          </h2>
-          <p className="mt-1 text-xs text-[#829187]">
-            Select one of the four available methods.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {SCAN_OPTIONS.map((option) => {
-            const Icon = option.icon;
-            const selected = activeTab === option.id;
-
-            return (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setActiveTab(option.id)}
-                className={`flex min-h-[112px] items-start gap-4 rounded-2xl border p-4 text-left transition-all duration-200 sm:p-5 ${
-                  selected
-                    ? 'border-[#247A50] bg-[#EFF6F0] shadow-sm'
-                    : 'border-[#E0E9E1] bg-white hover:border-[#B8D4BE] hover:bg-[#FAFCFA]'
-                }`}
-              >
-                <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${
-                    selected
-                      ? 'bg-[#247A50] text-white'
-                      : 'bg-[#EAF3EB] text-[#39845A]'
-                  }`}
-                >
-                  <Icon size={21} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="text-[9px] font-semibold tracking-[0.15em] text-[#829187]">
-                      {option.number}
-                    </span>
-
-                    {selected && (
-                      <span className="rounded-full bg-[#DCEEDF] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#247A50]">
-                        Selected
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="text-sm font-semibold text-[#153F2D]">
-                    {option.title}
-                  </h3>
-
-                  <p className="mt-1 text-xs leading-5 text-[#829187]">
-                    {option.description}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ACTIVE SCAN PANEL */}
-      <section className="overflow-hidden rounded-2xl border border-[#DFE9E0] bg-white shadow-[0_2px_12px_rgba(30,70,45,0.04)]">
-        <div className="flex items-center justify-between gap-4 border-b border-[#E7EEE7] px-5 py-5 sm:px-7">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#247A50]" />
-              <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[#247A50]">
-                Active method
-              </span>
-            </div>
-
-            <h2 className="text-lg font-semibold text-[#153F2D]">
-              {activeOption?.title}
-            </h2>
-
-            <p className="mt-1 text-xs text-[#829187]">
-              {activeOption?.description}
-            </p>
-          </div>
-
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EAF3EB] text-[#247A50]">
-            {activeOption && <activeOption.icon size={21} />}
-          </div>
-        </div>
-
-        <div className="p-5 sm:p-7">
-          {scanning ? (
-            <div className="flex min-h-64 flex-col items-center justify-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#EAF3EB] text-[#247A50]">
-                <Loader2 size={30} className="animate-spin" />
-              </div>
-
-              <div className="text-center">
-                <p className="font-semibold text-[#153F2D]">
-                  Analyzing your product
-                </p>
-                <p className="mt-2 text-xs text-[#829187]">
-                  Fetching product information and personalized insights...
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {activeTab === 'camera' && (
-                <CameraTab onResult={handleBarcodeResult} />
-              )}
-
-              {activeTab === 'manual' && (
-                <ManualTab onResult={handleResultReady} />
-              )}
-
-              {activeTab === 'barcode-image' && (
-                <BarcodeImageTab onResult={handleResultReady} />
-              )}
-
-              {activeTab === 'ingredient-image' && (
-                <IngredientImageTab onResult={handleResultReady} />
-              )}
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* FOOTER NOTE */}
-      <div className="mt-6 flex items-start justify-center gap-2 px-4 text-center">
-        <ShieldCheck size={15} className="mt-0.5 shrink-0 text-[#39845A]" />
-        <p className="text-[11px] leading-5 text-[#829187]">
-          FoodLens provides informational food insights, not a substitute
-          for professional medical advice.
+      {/* Footer note */}
+      <div className="mt-5 flex items-start gap-3 rounded-xl border p-4"
+        style={{ background: 'var(--ls-green-soft)', borderColor: 'var(--ls-border)' }}>
+        <ShieldCheck size={17} className="mt-0.5 shrink-0" style={{ color: 'var(--ls-green)' }} />
+        <p className="text-xs leading-5" style={{ color: 'var(--ls-muted)' }}>
+          Results are for informational purposes only. FoodLens uses AI-powered analysis based on your saved profile. It does not replace professional medical advice.
         </p>
       </div>
     </div>
