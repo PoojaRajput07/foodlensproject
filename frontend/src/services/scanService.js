@@ -4,6 +4,58 @@
 import api, { USE_MOCK } from './api.js';
 import { MOCK_SCAN_RESULT } from './mockAdapter.js';
 
+
+/**
+ * Normalize barcode API errors so the UI can show
+ * the correct message for each product lookup situation.
+ */
+function normalizeScanError(err) {
+  const response = err?.response?.data || {};
+  const backendMessage = response.message || '';
+  const backendUserMessage = response.userMessage || '';
+
+  const code =
+    response.code ||
+    (
+      /could not be reliably verified/i.test(backendMessage)
+        ? 'PRODUCT_NOT_VERIFIED'
+        : 'SCAN_FAILED'
+    );
+
+  let message =
+    backendUserMessage ||
+    backendMessage ||
+    'Something went wrong while searching for this product.';
+
+  if (code === 'GROQ_RATE_LIMIT') {
+    message =
+      backendUserMessage ||
+      'Product details could not be retrieved right now. Please try again later.';
+  }
+
+  if (code === 'PRODUCT_NOT_VERIFIED') {
+    message =
+      backendUserMessage ||
+      'We could not reliably verify this product using its barcode. Please check the barcode or try again later.';
+  }
+
+  if (!err?.response) {
+    message = err?.message || 'Backend server is unreachable.';
+  }
+
+  return {
+    message,
+    code,
+    errorType: response.errorType || null,
+    retryAfterSeconds: response.retryAfterSeconds ?? null,
+    canRetry: response.canRetry ?? false,
+    barcode: response.barcode || null,
+    sources: response.sources || null,
+    status: err?.response?.status || null,
+  };
+}
+
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -196,29 +248,19 @@ console.log("SCAN SERVICE TYPE:", typeof barcode);
       });
 
       return normalizeScanResult(data);
+    
     } catch (err) {
-  console.error('========== BARCODE SCAN ERROR ==========');
-  console.error('Barcode:', barcode);
-  console.error('Error message:', err.message);
-  console.error('Error code:', err.code);
-  console.error('Request URL:', err.config?.baseURL + err.config?.url);
-  console.error('Request data:', err.config?.data);
-  console.error('HTTP status:', err.response?.status);
-  console.error('Backend response:', err.response?.data);
-  console.error('========================================');
+      console.error('========== BARCODE SCAN ERROR ==========');
+      console.error('Barcode:', barcode);
+      console.error('Error message:', err.message);
+      console.error('Error code:', err.code);
+      console.error('HTTP status:', err.response?.status);
+      console.error('Backend response:', err.response?.data);
+      console.error('========================================');
 
-  if (!err.response) {
-    throw {
-      message: err.message || 'Backend server is unreachable.',
-    };
-  }
+      throw normalizeScanError(err);
+    }
 
-  throw {
-    message:
-      err.response?.data?.message ||
-      'Something went wrong.',
-  };
-}
   },
 
   /**

@@ -18,6 +18,20 @@ import fs from "fs";
 
 // Get verdict from Groq response
 
+const getRetryAfterSeconds = (errorMessage = "") => {
+  // Example: "Please try again in 12m32.112s"
+  const match = errorMessage.match(
+    /try again in\s+(?:(\d+)m)?([\d.]+)s/i
+  );
+
+  if (!match) return null;
+
+  const minutes = Number(match[1] || 0);
+  const seconds = Number(match[2] || 0);
+
+  return Math.ceil(minutes * 60 + seconds);
+};
+
 // Allowed verdicts
 const VALID_VERDICTS = [
   "AVOID",
@@ -92,6 +106,64 @@ const findDeclaredAllergyConflicts = (
     return aliases.some((alias) => tags.includes(alias));
   });
 };
+
+const findIngredientAllergyConflicts = (
+  userAllergies = [],
+  ingredients = []
+) => {
+  const ingredientText = ingredients
+    .join(" ")
+    .toLowerCase();
+
+  const INGREDIENT_KEYWORDS = {
+    milk: [
+      "milk",
+      "skim milk",
+      "milk powder",
+      "whey",
+      "casein",
+      "lactose",
+      "butter",
+      "cream"
+    ],
+    peanut: ["peanut", "groundnut"],
+    gluten: [
+      "wheat",
+      "barley",
+      "rye",
+      "malt",
+      "gluten",
+      "semolina",
+      "maida"
+    ],
+    soy: ["soy", "soya", "soybean"],
+    egg: ["egg", "egg powder", "albumin"],
+    "tree nuts": [
+      "almond",
+      "cashew",
+      "walnut",
+      "pistachio",
+      "hazelnut",
+      "pecan"
+    ],
+    sesame: ["sesame", "til"]
+  };
+
+  return userAllergies.filter((allergy) => {
+    const normalizedAllergy = normalizeAllergen(allergy);
+
+    const keywords =
+      INGREDIENT_KEYWORDS[normalizedAllergy] || [];
+
+    return keywords.some((keyword) =>
+      new RegExp(
+        `(^|[^a-z])${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`,
+        "i"
+      ).test(ingredientText)
+    );
+  });
+};
+
 
 // --------------------------------------------------
 // MANUAL INGREDIENT SCAN
@@ -181,7 +253,7 @@ if (declaredAllergyConflicts.length > 0) {
 
     aiAnalysis.personalizedAssessment.allergyAssessment.reasons = [
       ...(aiAnalysis.personalizedAssessment.allergyAssessment.reasons || []),
-      `Open Food Facts declares these allergens: ${declaredAllergyConflicts.join(", ")}.`,
+      `Open Food Facts declares these allergens: ${allAllergyConflicts.join(", ")}.`,
     ];
 
     aiAnalysis.personalizedAssessment.recommendation =
@@ -229,6 +301,7 @@ if (declaredAllergyConflicts.length > 0) {
 // --------------------------------------------------
 // BARCODE SCAN
 // --------------------------------------------------
+
 
 
 
@@ -337,14 +410,68 @@ export const scanBarcode = async (req, res) => {
         searchResult = await searchProductByBarcodeWithAI({
           barcode: cleanBarcode,
         });
-      } catch (searchError) {
-        console.error("Groq barcode search failed:", searchError.message);
+      
+} catch (searchError) {
+  const errorMessage = searchError?.message || "";
 
-        return res.status(502).json({
-          success: false,
-          message: "Product was not found in Open Food Facts and Groq search failed.",
-        });
-      }
+  console.error("Groq barcode search failed:", errorMessage);
+
+  const isRateLimit =
+    /rate limit|tokens per day|TPD|429|too many requests/i.test(
+      errorMessage
+    );
+
+  if (isRateLimit) {
+    const retryAfterSeconds =
+      getRetryAfterSeconds(errorMessage);
+
+    return res.status(503).json({
+      success: false,
+      code: "GROQ_RATE_LIMIT",
+      errorType: "AI_SEARCH_TEMPORARILY_UNAVAILABLE",
+
+      message:
+        "This product is not available in Open Food Facts, and our backup AI search has temporarily reached its usage limit.",
+
+      userMessage: retryAfterSeconds
+        ? `Product details could not be retrieved right now. Please try again in approximately ${Math.ceil(retryAfterSeconds / 60)} minutes.`
+        : "Product details could not be retrieved right now. Please try again later.",
+
+      retryAfterSeconds,
+
+      barcode: cleanBarcode,
+
+      sources: {
+        primary: "Open Food Facts",
+        fallback: "Groq AI",
+      },
+
+      canRetry: true,
+    });
+  }
+
+  return res.status(502).json({
+    success: false,
+    code: "GROQ_SEARCH_FAILED",
+    errorType: "AI_SEARCH_FAILED",
+
+    message:
+      "Product was not found in Open Food Facts, and the backup AI search failed.",
+
+    userMessage:
+      "We could not retrieve this product's details. Please try again later.",
+
+    barcode: cleanBarcode,
+    retryAfterSeconds: null,
+    canRetry: true,
+  });
+}
+
+
+      console.log(
+        "GROQ SEARCH RESULT:",
+        JSON.stringify(searchResult, null, 2)
+      );
 
       // Require exact barcode confirmation and source references
       if (
@@ -499,25 +626,45 @@ export const scanBarcode = async (req, res) => {
     }
 
     // 13. Deterministic allergen verification
-    const declaredAllergyConflicts = findDeclaredAllergyConflicts(
+
+    // Check declared allergen tags
+    const declaredTagConflicts = findDeclaredAllergyConflicts(
       healthProfile.allergies || [],
       productAnalysis.allergens || []
     );
 
+    // Check allergens inside ingredient list
+    const ingredientConflicts = findIngredientAllergyConflicts(
+      healthProfile.allergies || [],
+      normalizedIngredients
+    );
+
+    // Check possible cross-contact traces
     const traceAllergyConflicts = findDeclaredAllergyConflicts(
       healthProfile.allergies || [],
       productAnalysis.traces || []
     );
 
+    // Combine all allergen conflicts
+    const allAllergyConflicts = [
+      ...new Set([
+        ...declaredTagConflicts,
+        ...ingredientConflicts,
+        ...traceAllergyConflicts,
+      ]),
+    ];
+
+    // Get initial verdict from AI
     let overallVerdict = getAIVerdict(aiAnalysis);
 
-    // If ingredients are missing, do not claim a verified verdict
+    // Missing ingredients = UNVERIFIED
     if (normalizedIngredients.length === 0) {
       overallVerdict = "UNVERIFIED";
     }
 
-    // Confirmed allergen conflict = AVOID
-    if (declaredAllergyConflicts.length > 0) {
+    // Conservative policy:
+    // Any matching allergen, ingredient, or trace = AVOID
+    if (allAllergyConflicts.length > 0) {
       overallVerdict = "AVOID";
 
       if (aiAnalysis?.personalizedAssessment) {
@@ -529,42 +676,69 @@ export const scanBarcode = async (req, res) => {
 
           aiAnalysis.personalizedAssessment.allergyAssessment.reasons = [
             ...(aiAnalysis.personalizedAssessment.allergyAssessment.reasons || []),
-            `Declared allergens matching your profile: ${declaredAllergyConflicts.join(", ")}.`,
+            `Allergens matching your profile: ${allAllergyConflicts.join(", ")}.`,
           ];
         }
 
         aiAnalysis.personalizedAssessment.recommendation =
-          "Avoid this product because it declares an allergen matching your health profile.";
+          "Avoid this product because allergens matching your health profile were detected.";
 
         aiAnalysis.overallAssessment = "AVOID";
       }
     }
 
-    // Possible cross-contact = CAUTION
-    else if (traceAllergyConflicts.length > 0) {
-      overallVerdict = "CAUTION";
+    // 14. Generate clear verdict reasons independently of AI
+    const verdictReasons = [];
 
-      if (aiAnalysis?.personalizedAssessment) {
-        aiAnalysis.personalizedAssessment.status = "CAUTION";
-
-        if (aiAnalysis.personalizedAssessment.allergyAssessment) {
-          aiAnalysis.personalizedAssessment.allergyAssessment.status =
-            "CAUTION";
-
-          aiAnalysis.personalizedAssessment.allergyAssessment.reasons = [
-            ...(aiAnalysis.personalizedAssessment.allergyAssessment.reasons || []),
-            `Possible traces of: ${traceAllergyConflicts.join(", ")}.`,
-          ];
-        }
-
-        aiAnalysis.personalizedAssessment.recommendation =
-          "Use caution because the product reports possible cross-contact with an allergen in your health profile.";
-
-        aiAnalysis.overallAssessment = "CAUTION";
-      }
+    if (declaredTagConflicts.length > 0) {
+      verdictReasons.push(
+        `Open Food Facts allergen tags match your profile: ${declaredTagConflicts.join(", ")}.`
+      );
     }
 
-    // 14. Save scan history
+    if (ingredientConflicts.length > 0) {
+      verdictReasons.push(
+        `Matching allergens were found in the ingredient list: ${ingredientConflicts.join(", ")}.`
+      );
+    }
+
+    if (traceAllergyConflicts.length > 0) {
+      verdictReasons.push(
+        `Possible cross-contact traces match your profile: ${traceAllergyConflicts.join(", ")}.`
+      );
+    }
+
+    if (normalizedIngredients.length === 0) {
+      verdictReasons.push(
+        "Ingredient information is missing, so the product cannot be fully verified."
+      );
+    }
+
+    // Use AI recommendation if available and no deterministic reason exists
+    if (
+      verdictReasons.length === 0 &&
+      aiAnalysis?.personalizedAssessment?.recommendation
+    ) {
+      verdictReasons.push(
+        aiAnalysis.personalizedAssessment.recommendation
+      );
+    }
+
+    // Groq unavailable: provide fallback explanation
+    if (verdictReasons.length === 0 && !aiAnalysis) {
+      verdictReasons.push(
+        "AI analysis is unavailable. No matching allergens were identified in the available data, but this does not confirm that the product is safe."
+      );
+    }
+
+    // Final fallback reason
+    if (verdictReasons.length === 0) {
+      verdictReasons.push(
+        `The product received a ${overallVerdict} verdict based on the available analysis.`
+      );
+    }
+
+    // 15. Save scan history
     const savedScan = await ScanHistory.create({
       user: req.user._id,
       scanType: "barcode",
@@ -577,7 +751,7 @@ export const scanBarcode = async (req, res) => {
       aiAnalysis,
     });
 
-    // 15. Send response
+    // 16. Send response
     return res.status(200).json({
       success: true,
 
@@ -590,6 +764,7 @@ export const scanBarcode = async (req, res) => {
       scanId: savedScan._id,
       barcode: cleanBarcode,
       overallVerdict,
+      verdictReasons,
 
       product: {
         ...productDetails,
@@ -629,6 +804,7 @@ export const scanBarcode = async (req, res) => {
     });
   }
 };
+
 
 
 

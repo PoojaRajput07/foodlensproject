@@ -614,8 +614,9 @@ Return the result in the required JSON format.
         tool_choice: "required",
         temperature: 0.1,
         max_completion_tokens: 3000,
+        reasoning_effort: "low",
       }),
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(90000),
     }
   );
 
