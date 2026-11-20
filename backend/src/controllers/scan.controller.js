@@ -5,11 +5,13 @@ import {
 } from "../services/ocr.service.js";
 import {
   analyzeIngredientsWithAI,
+  searchProductByBarcodeWithAI,
 } from "../services/groq.service.js";
 import {
   extractIngredientNames,
 } from "../utils/normalizeIngredient.js";
 import fs from "fs";
+
 
 // Allowed verdicts
 
@@ -53,6 +55,42 @@ const getHealthProfile = (req, res) => {
   }
 
   return healthProfile;
+};
+
+
+
+// Match Open Food Facts allergen tags with user allergies
+const normalizeAllergen = (value) =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/^[a-z]{2,3}:/, "")
+    .replace(/_/g, "-");
+
+const ALLERGEN_ALIASES = {
+  milk: ["milk"],
+  peanut: ["peanut", "peanuts"],
+  gluten: ["gluten"],
+  soy: ["soy", "soya", "soybeans"],
+  egg: ["egg", "eggs"],
+  "tree nuts": ["nuts", "tree-nuts"],
+  sesame: ["sesame", "sesame-seeds"],
+};
+
+const findDeclaredAllergyConflicts = (
+  userAllergies = [],
+  productAllergens = []
+) => {
+  const tags = productAllergens.map(normalizeAllergen);
+
+  return userAllergies.filter((allergy) => {
+    const normalizedAllergy = normalizeAllergen(allergy);
+    const aliases = ALLERGEN_ALIASES[normalizedAllergy] || [
+      normalizedAllergy,
+    ];
+
+    return aliases.some((alias) => tags.includes(alias));
+  });
 };
 
 // --------------------------------------------------
@@ -123,7 +161,35 @@ export const scanFood = async (req, res) => {
       );
     }
 
-    const overallVerdict = getAIVerdict(aiAnalysis);
+// 15. Apply deterministic allergen verification
+const declaredAllergyConflicts = findDeclaredAllergyConflicts(
+  healthProfile.allergies || [],
+  productAnalysis.allergens || []
+);
+
+let overallVerdict = getAIVerdict(aiAnalysis);
+
+// A declared allergen conflict always takes priority.
+if (declaredAllergyConflicts.length > 0) {
+  overallVerdict = "AVOID";
+
+  if (aiAnalysis?.personalizedAssessment) {
+    aiAnalysis.personalizedAssessment.status = "AVOID";
+
+    aiAnalysis.personalizedAssessment.allergyAssessment.status =
+      "AVOID";
+
+    aiAnalysis.personalizedAssessment.allergyAssessment.reasons = [
+      ...(aiAnalysis.personalizedAssessment.allergyAssessment.reasons || []),
+      `Open Food Facts declares these allergens: ${declaredAllergyConflicts.join(", ")}.`,
+    ];
+
+    aiAnalysis.personalizedAssessment.recommendation =
+      "Avoid this product because it declares an allergen matching your health profile.";
+
+    aiAnalysis.overallAssessment = "AVOID";
+  }
+}
 
     // Save scan history
     const savedScan = await ScanHistory.create({
@@ -165,12 +231,15 @@ export const scanFood = async (req, res) => {
 // --------------------------------------------------
 
 
+
 export const scanBarcode = async (req, res) => {
   try {
     const { barcode } = req.body;
+
     console.log("REQUEST BODY:", req.body);
-console.log("BARCODE VALUE:", barcode);
-console.log("BARCODE TYPE:", typeof barcode);
+    console.log("BARCODE VALUE:", barcode);
+    console.log("BARCODE TYPE:", typeof barcode);
+    console.log("NEW GROQ FALLBACK CONTROLLER IS RUNNING");
 
     // 1. Validate barcode
     if (
@@ -190,7 +259,7 @@ console.log("BARCODE TYPE:", typeof barcode);
 
     if (!healthProfile) return;
 
-    // 3. Open Food Facts API v3 fields
+    // 3. Open Food Facts API fields
     const fields = [
       "code",
       "product_name",
@@ -201,17 +270,17 @@ console.log("BARCODE TYPE:", typeof barcode);
       "image_url",
       "nutriments",
       "allergens_tags",
+      "traces_tags",
       "ingredients_analysis_tags",
       "additives_tags",
     ].join(",");
 
-   
     const url = `https://world.openfoodfacts.org/api/v3/product/${cleanBarcode}.json?fields=${fields}`;
-     
 
-    console.log("Fetching Open Food Facts product:", cleanBarcode);
+    console.log("Fetching Open Food Facts:", cleanBarcode);
+    console.log("NEW GROQ FALLBACK CONTROLLER IS RUNNING");
 
-    // 4. Fetch product
+    // 4. Fetch Open Food Facts
     const response = await fetch(url, {
       signal: AbortSignal.timeout(15000),
       headers: {
@@ -219,17 +288,12 @@ console.log("BARCODE TYPE:", typeof barcode);
       },
     });
 
-    // 5. Parse response, including HTTP 404 responses
     let data;
 
     try {
-      
       data = await response.json();
-      console.log("OFF RESPONSE STATUS:", data.status);
-console.log("OFF PRODUCT EXISTS:", Boolean(data.product));
-console.log("OFF RESPONSE:", JSON.stringify(data, null, 2));
     } catch (parseError) {
-      console.error("OFF response parsing failed:", parseError.message);
+      console.error("OFF parsing failed:", parseError.message);
 
       return res.status(502).json({
         success: false,
@@ -237,51 +301,101 @@ console.log("OFF RESPONSE:", JSON.stringify(data, null, 2));
       });
     }
 
-    // 6. Handle product not found
-    if (response.status === 404 || data.status === 0) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Product not found in Open Food Facts. Try scanning the ingredient label instead.",
-        barcode: cleanBarcode,
-      });
+    console.log("OFF RESPONSE STATUS:", data.status);
+    console.log("OFF PRODUCT EXISTS:", Boolean(data.product));
+
+    // 5. Check whether OFF found the product
+    const offProductFound =
+      response.ok &&
+      data.status !== 0 &&
+      Boolean(data.product);
+
+    let product;
+    let barcodeSearchSources = [];
+    let barcodeMatchConfirmed = false;
+
+    // 6. If OFF does not find product, use Groq Browser Search
+    if (!offProductFound) {
+      // Do not use fallback for unrelated OFF server errors
+      if (
+        response.status !== 404 &&
+        data.status !== 0 &&
+        !response.ok
+      ) {
+        return res.status(502).json({
+          success: false,
+          message: "Open Food Facts service is temporarily unavailable.",
+          upstreamStatus: response.status,
+        });
+      }
+
+      console.log("Product not found in OFF. Trying Groq search...");
+
+      let searchResult;
+
+      try {
+        searchResult = await searchProductByBarcodeWithAI({
+          barcode: cleanBarcode,
+        });
+      } catch (searchError) {
+        console.error("Groq barcode search failed:", searchError.message);
+
+        return res.status(502).json({
+          success: false,
+          message: "Product was not found in Open Food Facts and Groq search failed.",
+        });
+      }
+
+      // Require exact barcode confirmation and source references
+      if (
+        !searchResult?.found ||
+        !searchResult?.barcodeMatchConfirmed ||
+        String(searchResult.barcode) !== cleanBarcode ||
+        !Array.isArray(searchResult.sources) ||
+        searchResult.sources.length === 0
+      ) {
+        return res.status(404).json({
+          success: false,
+          message: "Product could not be reliably verified using its barcode.",
+          barcode: cleanBarcode,
+          source: "Groq Browser Search",
+        });
+      }
+
+      barcodeMatchConfirmed = true;
+      barcodeSearchSources = searchResult.sources;
+
+      // Convert Groq result into OFF-like product structure
+      product = {
+        code: cleanBarcode,
+        product_name: searchResult.productName || "",
+        brands: searchResult.brand || "",
+        ingredients_text: searchResult.ingredientsText || "",
+        ingredients: (searchResult.ingredients || []).map((item) => {
+          return typeof item === "string"
+            ? { text: item }
+            : item;
+        }),
+        image_url: null,
+        nutriments: searchResult.nutrition || {},
+        allergens_tags: searchResult.allergens || [],
+        traces_tags: searchResult.traces || [],
+        ingredients_analysis_tags: [],
+        additives_tags: [],
+      };
+
+      console.log("Product retrieved through Groq:", product.product_name);
+    } else {
+      // 7. Product found in Open Food Facts
+      product = data.product;
+
+      console.log(
+        "Product found in OFF:",
+        product.product_name || cleanBarcode
+      );
     }
 
-    // 7. Handle other HTTP errors
-    if (!response.ok) {
-      console.error("Open Food Facts API error:", {
-        status: response.status,
-        response: data,
-      });
-
-      return res.status(502).json({
-        success: false,
-        message: "Open Food Facts service is temporarily unavailable.",
-        upstreamStatus: response.status,
-      });
-    }
-
-    // 8. Validate product data
-   if (!data.product) {
-  console.error("Product not found:", data);
-
-  return res.status(404).json({
-    success: false,
-    message: "Product not found in Open Food Facts.",
-    barcode: cleanBarcode,
-  });
-}
-
-
-
-    const product = data.product;
-
-    console.log(
-      "PRODUCT FOUND:",
-      product.product_name || cleanBarcode
-    );
-
-    // 9. Extract ingredients
+    // 8. Extract ingredients
     const ingredientsText = product.ingredients_text || "";
 
     const apiIngredients = (product.ingredients || [])
@@ -303,76 +417,70 @@ console.log("OFF RESPONSE:", JSON.stringify(data, null, 2));
       ),
     ];
 
-    // 10. Extract nutrition
+    // 9. Extract nutrition
     const nutriments = product.nutriments || {};
 
     const nutrition = {
       energyKcal100g:
-        nutriments["energy-kcal_100g"] ?? null,
+        nutriments["energy-kcal_100g"] ??
+        nutriments.energyKcal100g ??
+        null,
+
       fat100g:
-        nutriments.fat_100g ?? null,
+        nutriments.fat_100g ??
+        nutriments.fat100g ??
+        null,
+
       saturatedFat100g:
-        nutriments["saturated-fat_100g"] ?? null,
+        nutriments["saturated-fat_100g"] ??
+        nutriments.saturatedFat100g ??
+        null,
+
       carbohydrates100g:
-        nutriments.carbohydrates_100g ?? null,
+        nutriments.carbohydrates_100g ??
+        nutriments.carbohydrates100g ??
+        null,
+
       sugars100g:
-        nutriments.sugars_100g ?? null,
+        nutriments.sugars_100g ??
+        nutriments.sugars100g ??
+        null,
+
       proteins100g:
-        nutriments.proteins_100g ?? null,
+        nutriments.proteins_100g ??
+        nutriments.proteins100g ??
+        null,
+
       salt100g:
-        nutriments.salt_100g ?? null,
+        nutriments.salt_100g ??
+        nutriments.salt100g ??
+        null,
+
       sodium100g:
-        nutriments.sodium_100g ?? null,
+        nutriments.sodium_100g ??
+        nutriments.sodium100g ??
+        null,
     };
 
-    // 11. Extract additional product information
+    // 10. Extract product analysis
     const productAnalysis = {
       allergens: product.allergens_tags || [],
+      traces: product.traces_tags || [],
       ingredientAnalysisTags:
         product.ingredients_analysis_tags || [],
       additives: product.additives_tags || [],
+      sources: barcodeSearchSources,
+      barcodeMatchConfirmed,
     };
 
-    // 12. Product details
+    // 11. Product details
     const productDetails = {
       name: product.product_name || "Unknown product",
       brand: product.brands || "Unknown brand",
       image: product.image_url || null,
     };
 
-    // 13. Product exists but ingredients are unavailable
-    if (!normalizedIngredients.length) {
-      const savedScan = await ScanHistory.create({
-        user: req.user._id,
-        scanType: "barcode",
-        barcode: data.code || cleanBarcode,
-        product: productDetails,
-        ingredientsText: ingredientsText || null,
-        ingredients: [],
-        overallVerdict: "UNVERIFIED",
-        nutrition,
-        aiAnalysis: null,
-      });
-
-      return res.status(200).json({
-        success: true,
-        message:
-          "Product found, but ingredient information is unavailable.",
-        scanId: savedScan._id,
-        barcode: data.code || cleanBarcode,
-        overallVerdict: "UNVERIFIED",
-        product: {
-          ...productDetails,
-          ingredientsText: ingredientsText || null,
-          ingredients: [],
-          productAnalysis,
-        },
-        nutrition,
-        aiAnalysis: null,
-      });
-    }
-
-    // 14. Analyze product using Groq AI
+    // 12. Analyze using existing Groq AI function
     let aiAnalysis = null;
 
     try {
@@ -385,19 +493,82 @@ console.log("OFF RESPONSE:", JSON.stringify(data, null, 2));
       });
     } catch (aiError) {
       console.error(
-        "Groq barcode analysis failed:",
+        "Groq ingredient analysis failed:",
         aiError.message
       );
     }
 
-    // 15. Get personalized verdict
-    const overallVerdict = getAIVerdict(aiAnalysis);
+    // 13. Deterministic allergen verification
+    const declaredAllergyConflicts = findDeclaredAllergyConflicts(
+      healthProfile.allergies || [],
+      productAnalysis.allergens || []
+    );
 
-    // 16. Save scan history
+    const traceAllergyConflicts = findDeclaredAllergyConflicts(
+      healthProfile.allergies || [],
+      productAnalysis.traces || []
+    );
+
+    let overallVerdict = getAIVerdict(aiAnalysis);
+
+    // If ingredients are missing, do not claim a verified verdict
+    if (normalizedIngredients.length === 0) {
+      overallVerdict = "UNVERIFIED";
+    }
+
+    // Confirmed allergen conflict = AVOID
+    if (declaredAllergyConflicts.length > 0) {
+      overallVerdict = "AVOID";
+
+      if (aiAnalysis?.personalizedAssessment) {
+        aiAnalysis.personalizedAssessment.status = "AVOID";
+
+        if (aiAnalysis.personalizedAssessment.allergyAssessment) {
+          aiAnalysis.personalizedAssessment.allergyAssessment.status =
+            "AVOID";
+
+          aiAnalysis.personalizedAssessment.allergyAssessment.reasons = [
+            ...(aiAnalysis.personalizedAssessment.allergyAssessment.reasons || []),
+            `Declared allergens matching your profile: ${declaredAllergyConflicts.join(", ")}.`,
+          ];
+        }
+
+        aiAnalysis.personalizedAssessment.recommendation =
+          "Avoid this product because it declares an allergen matching your health profile.";
+
+        aiAnalysis.overallAssessment = "AVOID";
+      }
+    }
+
+    // Possible cross-contact = CAUTION
+    else if (traceAllergyConflicts.length > 0) {
+      overallVerdict = "CAUTION";
+
+      if (aiAnalysis?.personalizedAssessment) {
+        aiAnalysis.personalizedAssessment.status = "CAUTION";
+
+        if (aiAnalysis.personalizedAssessment.allergyAssessment) {
+          aiAnalysis.personalizedAssessment.allergyAssessment.status =
+            "CAUTION";
+
+          aiAnalysis.personalizedAssessment.allergyAssessment.reasons = [
+            ...(aiAnalysis.personalizedAssessment.allergyAssessment.reasons || []),
+            `Possible traces of: ${traceAllergyConflicts.join(", ")}.`,
+          ];
+        }
+
+        aiAnalysis.personalizedAssessment.recommendation =
+          "Use caution because the product reports possible cross-contact with an allergen in your health profile.";
+
+        aiAnalysis.overallAssessment = "CAUTION";
+      }
+    }
+
+    // 14. Save scan history
     const savedScan = await ScanHistory.create({
       user: req.user._id,
       scanType: "barcode",
-      barcode: data.code || cleanBarcode,
+      barcode: cleanBarcode,
       product: productDetails,
       ingredientsText: ingredientsText || null,
       ingredients: normalizedIngredients,
@@ -406,23 +577,33 @@ console.log("OFF RESPONSE:", JSON.stringify(data, null, 2));
       aiAnalysis,
     });
 
-    // 17. Send response
+    // 15. Send response
     return res.status(200).json({
       success: true,
-      message: aiAnalysis
-        ? "Product scanned and analyzed successfully."
-        : "Product found, but AI analysis is currently unavailable.",
+
+      message: !normalizedIngredients.length
+        ? "Product found, but ingredient information is unavailable. Result is unverified."
+        : aiAnalysis
+          ? "Product scanned and analyzed successfully."
+          : "Product found, but AI analysis is currently unavailable.",
+
       scanId: savedScan._id,
-      barcode: data.code || cleanBarcode,
+      barcode: cleanBarcode,
       overallVerdict,
+
       product: {
         ...productDetails,
         ingredientsText: ingredientsText || null,
         ingredients: normalizedIngredients,
         productAnalysis,
       },
+
       nutrition,
       aiAnalysis,
+
+      source: barcodeMatchConfirmed
+        ? "Groq Browser Search"
+        : "Open Food Facts",
     });
 
   } catch (error) {
@@ -434,7 +615,7 @@ console.log("OFF RESPONSE:", JSON.stringify(data, null, 2));
     ) {
       return res.status(504).json({
         success: false,
-        message: "Open Food Facts request timed out. Please try again.",
+        message: "Barcode lookup timed out. Please try again.",
       });
     }
 
@@ -448,6 +629,7 @@ console.log("OFF RESPONSE:", JSON.stringify(data, null, 2));
     });
   }
 };
+
 
 
 // --------------------------------------------------
